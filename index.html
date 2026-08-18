@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<!-- Tudo do jogo é local: nada de script, fonte, imagem ou conexão externa.
+     Sem isso, qualquer HTML injetado num texto poderia buscar código de fora. -->
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'" />
+<title>Maré</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+
+    <div class="topbar drag-region">
+      <div class="rank-badge no-drag">
+        <span class="rank-label">Rank</span>
+        <span id="rank-value">1</span>
+      </div>
+
+      <div class="xp-wrap no-drag" title="Experiência">
+        <div class="xp-bar"><div id="xp-fill" class="xp-fill"></div></div>
+      </div>
+
+      <div class="currency-pill no-drag" title="Conchas">
+        <span class="coin coin-conchas"></span>
+        <span id="conchas-value">0</span>
+      </div>
+      <div class="currency-pill no-drag" title="Escamas">
+        <span class="coin coin-escamas"></span>
+        <span id="escamas-value">0</span>
+      </div>
+
+      <button id="btn-hide" class="icon-btn no-drag" title="Ocultar">–</button>
+    </div>
+
+    <div class="scene-wrap">
+      <canvas id="scene" width="308" height="300"></canvas>
+      <div id="toast-container"></div>
+      <div id="location-tag"></div>
+    </div>
+
+    <div class="action-row">
+      <button id="btn-main-action" class="main-action">Lançar a isca</button>
+      <div id="reel-meter" class="reel-meter hidden">
+        <div id="reel-fill" class="reel-fill"></div>
+      </div>
+      <div id="wait-indicator" class="wait-indicator hidden">à espera de uma fisgada…</div>
+    </div>
+
+    <div id="auto-fish-row" class="auto-fish-row hidden">
+      <label class="switch">
+        <input type="checkbox" id="auto-fish-toggle" />
+        <span class="slider"></span>
+      </label>
+      <span>Assistente de pesca automática</span>
+    </div>
+
+    <div class="tabbar">
+      <button class="tab-btn" data-panel="panel-shop">Loja</button>
+      <button class="tab-btn" data-panel="panel-cosmetics">Cosméticos</button>
+      <button class="tab-btn" data-panel="panel-map">Mapa</button>
+    </div>
+
+    <div id="inventory-strip" class="inventory-strip"></div>
+  </div>
+
+  <!-- painéis (modais internos) -->
+  <div id="panel-shop" class="panel hidden">
+    <div class="panel-header">
+      <h2>Loja — <span id="shop-vendor-name"></span></h2>
+      <button class="panel-close" data-close="panel-shop">×</button>
+    </div>
+    <div class="panel-body">
+      <section>
+        <div class="section-title">Seu peixe</div>
+        <div id="shop-inventory" class="shop-inventory"></div>
+        <button id="btn-sell-all" class="secondary-btn">Vender tudo</button>
+      </section>
+      <section>
+        <div class="section-title">Equipamento</div>
+        <div id="shop-equipment" class="shop-equipment"></div>
+      </section>
+    </div>
+  </div>
+
+  <div id="panel-cosmetics" class="panel hidden">
+    <div class="panel-header">
+      <h2>Cosméticos</h2>
+      <button class="panel-close" data-close="panel-cosmetics">×</button>
+    </div>
+    <div class="panel-body">
+      <div id="cosmetics-slots"></div>
+    </div>
+  </div>
+
+  <div id="panel-map" class="panel hidden">
+    <div class="panel-header">
+      <h2>Mapa</h2>
+      <button class="panel-close" data-close="panel-map">×</button>
+    </div>
+    <div class="panel-body">
+      <div id="map-locations"></div>
+    </div>
+  </div>
+
+  <div id="offline-modal" class="panel hidden">
+    <div class="panel-header">
+      <h2>Enquanto você estava fora…</h2>
+    </div>
+    <div class="panel-body">
+      <p id="offline-summary"></p>
+      <button id="btn-offline-close" class="secondary-btn">Legal!</button>
+    </div>
+  </div>
+
+  <script type="module" src="src/renderer.js"></script>
+</body>
+</html>

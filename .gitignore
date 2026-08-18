@@ -1,0 +1,72 @@
+# --- dependências ---
+node_modules/
+.pnp/
+.pnp.js
+
+# --- builds / empacotamento (electron-builder) ---
+dist/
+build/
+out/
+release/
+*.exe
+*.dmg
+*.AppImage
+*.snap
+*.deb
+*.rpm
+*.blockmap
+*.zip
+*.asar
+
+# --- logs ---
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+
+# --- saves e dados locais do jogo ---
+# O progresso fica no userData do sistema, mas se um save cair aqui
+# durante um teste, ele não deve ir pro repositório.
+mare-save.json
+*.save.json
+*.corrupt
+
+# --- variáveis de ambiente / credenciais ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# --- editores e IDEs ---
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+.idea/
+*.swp
+*.swo
+*~
+.history/
+
+# --- sistema operacional ---
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# --- caches diversos ---
+.cache/
+.temp/
+.tmp/
+coverage/
+.eslintcache

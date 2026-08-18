@@ -1,0 +1,30 @@
+{
+  "name": "mare-cozy-fishing",
+  "version": "0.1.0",
+  "description": "Widget de pesca cozy para desktop — fica no canto da tela, clicker de pesca com evolucao, loja e cosmeticos",
+  "main": "main.js",
+  "author": "Natz",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "^31.3.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.natz.marecozyfishing",
+    "productName": "Mare",
+    "files": [
+      "**/*",
+      "!README.md"
+    ],
+    "win": { "target": "nsis" },
+    "mac": { "target": "dmg", "category": "public.app-category.games" },
+    "linux": { "target": "AppImage" }
+  }
+}
