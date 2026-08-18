@@ -2,7 +2,7 @@
 // sem classes, pra ficar fácil de inspecionar/depurar e salvar como JSON puro.
 
 import { FISH } from './data/fish.js';
-import { LOCATIONS } from './data/locations.js';
+import { LOCATIONS, allVenueIds } from './data/locations.js';
 import { COSMETICS } from './data/cosmetics.js';
 import { RODS, BAITS } from './data/equipment.js';
 
@@ -41,6 +41,7 @@ export function defaultState() {
 
     locationId: DEFAULT_LOCATION,
     unlockedLocations: [DEFAULT_LOCATION],
+    unlockedVenues: [], // lojas/ateliês visitáveis (ver venues em data/locations.js)
 
     inventory: [], // { fishId, qty }
 
@@ -145,6 +146,11 @@ export function sanitizeState(state) {
   s.locationId = typeof s.locationId === 'string' && s.unlockedLocations.includes(s.locationId)
     ? s.locationId
     : DEFAULT_LOCATION;
+
+  const knownVenues = new Set(allVenueIds());
+  s.unlockedVenues = Array.isArray(s.unlockedVenues)
+    ? [...new Set(s.unlockedVenues.filter((id) => typeof id === 'string' && knownVenues.has(id)))]
+    : [];
 
   const invMap = new Map();
   if (Array.isArray(s.inventory)) {

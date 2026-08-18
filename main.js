@@ -7,7 +7,7 @@ const path = require('path');
 const fs = require('fs');
 
 const WINDOW_W = 340;
-const WINDOW_H = 540;
+const WINDOW_H = 450; // cena (proporcional) + painel de controle; o resto seria area transparente clicavel
 const SAVE_FILE = path.join(app.getPath('userData'), 'mare-save.json');
 const SAVE_TMP = SAVE_FILE + '.tmp';
 const MAX_SAVE_BYTES = 2 * 1024 * 1024; // save legítimo tem alguns KB; acima disso é lixo/corrupção

@@ -36,89 +36,22 @@ html, body {
   user-select: none;
 }
 
+/* A casca não tem fundo nenhum: só a cena (transparente no topo) e o painel
+   de controle lá embaixo. É o que faz a área de trabalho aparecer atrás. */
 .app-shell {
   position: relative;
   margin: 6px;
   width: calc(100% - 12px);
   height: calc(100% - 12px);
-  background: linear-gradient(180deg, #efe0bd, #e6d3a8);
-  border: 3px solid var(--driftwood);
-  border-radius: 14px;
-  box-shadow: var(--shadow-soft);
-  overflow: hidden;
   display: flex;
   flex-direction: column;
+  justify-content: flex-end; /* tudo encosta embaixo; o resto fica transparente */
 }
 
 .drag-region { -webkit-app-region: drag; }
 .no-drag { -webkit-app-region: no-drag; }
 
-/* ---------- topbar ---------- */
-.topbar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  background: var(--driftwood);
-  color: var(--sand-cream);
-}
-
-.rank-badge {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  line-height: 1;
-  font-family: 'PixelDisplay', monospace;
-  font-size: 9px;
-  background: var(--sand-cream);
-  color: var(--ink);
-  border-radius: 6px;
-  padding: 3px 6px;
-}
-.rank-label { font-size: 6px; opacity: 0.7; }
-#rank-value { font-size: 12px; margin-top: 2px; }
-
-.xp-wrap { flex: 1; }
-.xp-bar {
-  height: 8px;
-  background: rgba(0,0,0,0.35);
-  border-radius: 4px;
-  overflow: hidden;
-  border: 1px solid rgba(0,0,0,0.4);
-}
-.xp-fill {
-  height: 100%;
-  width: 0%;
-  background: var(--moss-green);
-  transition: width 0.3s ease;
-}
-
-.currency-pill {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: rgba(0,0,0,0.25);
-  border-radius: 10px;
-  padding: 3px 7px;
-  font-size: 15px;
-}
-.coin { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-.coin-conchas { background: var(--sand-cream); border: 1px solid var(--ink); }
-.coin-escamas { background: #9fd8e8; border: 1px solid #2e6e75; }
-
-.icon-btn {
-  background: rgba(0,0,0,0.25);
-  color: var(--sand-cream);
-  border: none;
-  border-radius: 6px;
-  width: 22px; height: 22px;
-  font-family: 'PixelDisplay', monospace;
-  font-size: 10px;
-  cursor: pointer;
-}
-.icon-btn:hover { background: rgba(0,0,0,0.4); }
-
-/* ---------- scene ---------- */
+/* ---------- cena ---------- */
 .scene-wrap {
   position: relative;
   flex: 0 0 auto;
@@ -126,18 +59,26 @@ html, body {
 #scene {
   display: block;
   width: 100%;
-  height: 176px;
+  height: auto;
+  /* Trava a proporção do canvas interno (308x240): sem isso a cena era
+     esticada pra caber numa altura fixa e achatava os personagens. */
+  aspect-ratio: 308 / 240;
   image-rendering: pixelated;
 }
 #location-tag {
   position: absolute;
   left: 8px;
-  bottom: 6px;
+  bottom: 8px;
   font-size: 14px;
   color: var(--sand-cream);
-  background: rgba(0,0,0,0.35);
+  background: rgba(0,0,0,0.4);
   padding: 2px 8px;
   border-radius: 8px;
+}
+#btn-hide {
+  position: absolute;
+  top: 4px;
+  right: 4px;
 }
 #toast-container {
   position: absolute;
@@ -168,9 +109,86 @@ html, body {
   100% { opacity: 0; transform: translateY(-4px); }
 }
 
+/* ---------- painel de controle (embaixo da personagem) ---------- */
+.console-card {
+  flex: 0 0 auto;
+  background: linear-gradient(180deg, #efe0bd, #e6d3a8);
+  border: 3px solid var(--driftwood);
+  border-radius: 14px;
+  box-shadow: var(--shadow-soft);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* barra de status: rank, xp e moedas — antes ficavam no topo da janela */
+.statbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--driftwood);
+  border-radius: 9px;
+  padding: 4px 6px;
+  color: var(--sand-cream);
+}
+
+.rank-badge {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  line-height: 1;
+  font-family: 'PixelDisplay', monospace;
+  background: var(--sand-cream);
+  color: var(--ink);
+  border-radius: 6px;
+  padding: 4px 6px;
+}
+.rank-label { font-size: 6px; opacity: 0.7; }
+#rank-value { font-size: 10px; }
+
+.xp-wrap { flex: 1; }
+.xp-bar {
+  height: 8px;
+  background: rgba(0,0,0,0.35);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.4);
+}
+.xp-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--moss-green);
+  transition: width 0.3s ease;
+}
+
+.currency-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(0,0,0,0.25);
+  border-radius: 10px;
+  padding: 2px 7px;
+  font-size: 15px;
+}
+.coin { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.coin-conchas { background: var(--sand-cream); border: 1px solid var(--ink); }
+.coin-escamas { background: #9fd8e8; border: 1px solid #2e6e75; }
+
+.icon-btn {
+  background: rgba(20, 14, 8, 0.55);
+  color: var(--sand-cream);
+  border: none;
+  border-radius: 6px;
+  width: 22px; height: 22px;
+  font-family: 'PixelDisplay', monospace;
+  font-size: 10px;
+  cursor: pointer;
+}
+.icon-btn:hover { background: rgba(20, 14, 8, 0.8); }
+
 /* ---------- ação principal ---------- */
 .action-row {
-  padding: 8px 10px 2px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -216,7 +234,6 @@ html, body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 2px 10px 6px;
   font-size: 15px;
   color: var(--ink);
 }
@@ -241,66 +258,54 @@ html, body {
 .switch input:checked + .slider { background: var(--moss-green); }
 .switch input:checked + .slider::before { transform: translateX(16px); }
 
-/* ---------- tabs + inventário ---------- */
+/* ---------- abas ---------- */
 .tabbar {
   display: flex;
-  gap: 4px;
-  padding: 0 8px;
+  gap: 6px;
 }
 .tab-btn {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   font-family: 'PixelBody', monospace;
-  font-size: 15px;
-  background: rgba(0,0,0,0.12);
+  font-size: 16px;
+  background: var(--driftwood);
+  color: var(--sand-cream);
   border: none;
-  border-radius: 8px 8px 0 0;
+  border-radius: 8px;
   padding: 6px 4px;
   cursor: pointer;
-  color: var(--ink);
 }
-.tab-btn:hover { background: rgba(0,0,0,0.2); }
-
-.inventory-strip {
-  flex: 1;
-  display: flex;
-  gap: 6px;
-  padding: 6px 8px 8px;
-  overflow-x: auto;
-  align-items: center;
-}
-.inv-empty { font-size: 14px; opacity: 0.6; }
-.inv-item {
-  flex: none;
-  width: 40px; height: 40px;
-  background: rgba(0,0,0,0.12);
-  border-radius: 8px;
-  position: relative;
-  cursor: default;
-}
-.inv-item canvas { width: 100%; height: 100%; }
-.inv-qty {
-  position: absolute;
-  right: 2px; bottom: 1px;
+.tab-btn:hover { background: var(--driftwood-dark); }
+.tab-count {
   font-size: 12px;
-  background: rgba(0,0,0,0.55);
-  color: #fff;
-  border-radius: 4px;
-  padding: 0 3px;
+  background: rgba(0,0,0,0.35);
+  border-radius: 8px;
+  padding: 0 6px;
+  min-width: 20px;
+  text-align: center;
 }
 
 /* ---------- painéis ---------- */
 .panel {
   position: absolute;
-  inset: 0;
+  inset: 6px;
   background: var(--panel-bg);
+  border: 3px solid var(--driftwood);
+  border-radius: 14px;
+  box-shadow: var(--shadow-soft);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   z-index: 20;
 }
 .panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   background: var(--driftwood);
   color: var(--sand-cream);
   padding: 8px 10px;
@@ -316,6 +321,7 @@ html, body {
   border: none;
   color: var(--sand-cream);
   width: 24px; height: 24px;
+  flex: none;
   border-radius: 6px;
   font-size: 16px;
   cursor: pointer;
@@ -347,7 +353,7 @@ html, body {
 }
 .secondary-btn:disabled { opacity: 0.5; cursor: default; }
 
-.shop-inventory, .shop-equipment, #cosmetics-slots, #map-locations {
+.shop-inventory, .shop-equipment, #cosmetics-slots, #map-locations, #map-venues, .pocket-list {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -373,9 +379,39 @@ html, body {
   border-radius: 6px;
   padding: 5px 8px;
   cursor: pointer;
+  flex: none;
 }
 .row-card button:disabled { opacity: 0.45; cursor: default; }
 .row-card button.equipped { background: var(--moss-green); color: #1c2b18; }
+.row-card.venue { background: rgba(122, 155, 110, 0.18); }
+.row-card.venue.locked { background: rgba(0,0,0,0.06); }
+
+/* ---------- bolso ---------- */
+.pocket-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0,0,0,0.06);
+  border-radius: 8px;
+  padding: 5px 8px;
+}
+.pocket-item canvas {
+  width: 34px; height: 34px;
+  flex: none;
+  image-rendering: pixelated;
+}
+.pocket-info { display: flex; flex-direction: column; flex: 1; }
+.pocket-name { font-size: 15px; }
+.pocket-sub { font-size: 12px; opacity: 0.7; }
+.pocket-qty {
+  font-family: 'PixelDisplay', monospace;
+  font-size: 10px;
+  background: var(--driftwood);
+  color: var(--sand-cream);
+  border-radius: 6px;
+  padding: 4px 6px;
+}
+.inv-empty { font-size: 14px; opacity: 0.6; }
 
 #offline-modal .panel-body { align-items: center; text-align: center; display: flex; flex-direction: column; gap: 10px; justify-content: center; }
 

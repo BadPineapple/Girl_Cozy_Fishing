@@ -7,7 +7,10 @@ import { createFishingSession } from './systems/fishing.js';
 import { canAfford } from './systems/economy.js';
 import { sellFish, sellAll, fishSellValue, nextRod, nextBait, buyNextRod, buyNextBait, buyAutoFishUnlock } from './systems/shop.js';
 import { buyCosmetic, equipCosmetic } from './systems/cosmetics.js';
-import { sortedLocations, isLocationUnlocked, travelTo, unlockLocation, LOCATIONS } from './systems/map.js';
+import {
+  sortedLocations, isLocationUnlocked, travelTo, unlockLocation,
+  venuesForLocation, venueById, isVenueUnlocked, unlockVenue, LOCATIONS,
+} from './systems/map.js';
 import { tickEvents } from './systems/eventsEngine.js';
 import { tickAutoFish } from './systems/autoFish.js';
 import { computeOfflineEarnings } from './systems/offline.js';
@@ -19,7 +22,7 @@ import { renderScene } from './render/scene.js';
 import { drawFishIcon } from './render/pixelSprites.js';
 
 const DEFAULT_LOCATION = 'ancoradouro';
-const MAX_FRAME_DT_MS = 250;        // trava dt do minigame pra evitar saltos após pausa
+const MAX_FRAME_DT_MS = 250;               // trava dt do minigame pra evitar saltos após pausa
 const MAX_WALL_DT_MS = 8 * 60 * 60 * 1000; // teto do "catch-up" do assistente
 
 // ---------- boot ----------
@@ -30,6 +33,8 @@ state.lastSeen = Date.now();
 
 const runtime = { fishingPhase: 'idle' };
 const autoFishAccumulator = { value: 0 };
+// Qual estabelecimento está aberto — o cabeçalho da loja/ateliê usa o nome dele.
+let currentVenue = null;
 
 const canvas = document.getElementById('scene');
 const ctx = canvas.getContext('2d');
@@ -55,6 +60,10 @@ function pushToast(text) {
 
 function fmt(n) { return Math.round(n).toLocaleString('pt-BR'); }
 
+function totalFishInPocket() {
+  return state.inventory.reduce((sum, entry) => sum + entry.qty, 0);
+}
+
 // ---------- fishing session ----------
 const fishingSession = createFishingSession({
   getState: () => state,
@@ -65,8 +74,7 @@ const fishingSession = createFishingSession({
     if (caught.ranksGained > 0) {
       setTimeout(() => pushToast(`⭐ Subiu para o rank ${state.player.rank}!`), 500);
     }
-    renderTopBar();
-    renderInventoryStrip();
+    renderStatBar();
   },
   onEscape: (fish) => {
     pushToast(fish ? `${fish.name} escapou...` : 'Escapou...');
@@ -95,8 +103,7 @@ function loop(ts) {
     pushToast(autoResults.length === 1
       ? `🤖 Assistente pescou: ${last.fish.name}`
       : `🤖 Assistente pescou ${autoResults.length} peixes`);
-    renderInventoryStrip();
-    renderTopBar();
+    renderStatBar();
   }
 
   tickEvents(state, nowMs, (evt) => pushToast(`✨ ${evt.title}`));
@@ -105,13 +112,14 @@ function loop(ts) {
   requestAnimationFrame(loop);
 }
 
-// stats/topbar são atualizados por evento, não a cada frame — mais leve
-function renderTopBar() {
+// stats são atualizados por evento, não a cada frame — mais leve
+function renderStatBar() {
   document.getElementById('rank-value').textContent = state.player.rank;
   document.getElementById('xp-fill').style.width = `${Math.min(100, (state.player.xp / state.player.xpToNext) * 100)}%`;
   document.getElementById('conchas-value').textContent = fmt(state.currencies.conchas);
   document.getElementById('escamas-value').textContent = fmt(state.currencies.escamas);
   document.getElementById('location-tag').textContent = currentLocation().name;
+  document.getElementById('pocket-count').textContent = fmt(totalFishInPocket());
 
   const autoRow = document.getElementById('auto-fish-row');
   autoRow.classList.toggle('hidden', !state.autoFish.unlocked);
@@ -162,43 +170,19 @@ document.getElementById('auto-fish-toggle').addEventListener('change', (e) => {
   saveNow();
 });
 
-// ---------- inventário ----------
-function renderInventoryStrip() {
-  const strip = document.getElementById('inventory-strip');
-  strip.innerHTML = '';
-  if (state.inventory.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'inv-empty';
-    empty.textContent = 'Nenhum peixe no bolso ainda.';
-    strip.appendChild(empty);
-    return;
-  }
-  for (const entry of state.inventory) {
-    const fish = FISH[entry.fishId];
-    if (!fish) continue;
-    const item = document.createElement('div');
-    item.className = 'inv-item';
-    item.title = `${fish.name} (${RARITY_LABEL[fish.rarity]}) — ${entry.qty}`;
-    const c = document.createElement('canvas');
-    c.width = 40; c.height = 40;
-    drawFishIcon(c.getContext('2d'), fish.palette, 2, 2, 34);
-    const qty = document.createElement('span');
-    qty.className = 'inv-qty';
-    qty.textContent = entry.qty;
-    item.appendChild(c);
-    item.appendChild(qty);
-    strip.appendChild(item);
-  }
-}
-
 // ---------- painéis ----------
-const PANEL_IDS = ['panel-shop', 'panel-cosmetics', 'panel-map'];
+// Loja e ateliê não têm aba: são lugares, abertos pelo Mapa.
+const PANEL_IDS = ['panel-map', 'panel-pocket', 'panel-shop', 'panel-cosmetics'];
 
 document.querySelectorAll('.tab-btn').forEach((btn) => {
   btn.addEventListener('click', () => openPanel(btn.dataset.panel));
 });
 document.querySelectorAll('.panel-close').forEach((btn) => {
-  btn.addEventListener('click', () => closePanel(btn.dataset.close));
+  btn.addEventListener('click', () => {
+    closePanel(btn.dataset.close);
+    // Saiu da loja/ateliê? Volta pro mapa, que foi de onde você entrou.
+    if (btn.dataset.back) openPanel(btn.dataset.back);
+  });
 });
 
 function openPanel(id) {
@@ -208,20 +192,22 @@ function openPanel(id) {
   for (const other of PANEL_IDS) {
     if (other !== id) document.getElementById(other).classList.add('hidden');
   }
+  if (id === 'panel-map') renderMapPanel();
+  if (id === 'panel-pocket') renderPocketPanel();
   if (id === 'panel-shop') renderShopPanel();
   if (id === 'panel-cosmetics') renderCosmeticsPanel();
-  if (id === 'panel-map') renderMapPanel();
   document.getElementById(id).classList.remove('hidden');
 }
+
 function closePanel(id) {
   const panel = document.getElementById(id);
   if (panel) panel.classList.add('hidden');
   saveNow();
 }
 
-function rowCard({ title, sub, buttonLabel, disabled, onClick, equipped }) {
+function rowCard({ title, sub, buttonLabel, disabled, onClick, equipped, className }) {
   const row = document.createElement('div');
-  row.className = 'row-card';
+  row.className = className ? `row-card ${className}` : 'row-card';
   const info = document.createElement('div');
   info.className = 'row-info';
   const t = document.createElement('div');
@@ -254,9 +240,122 @@ function costLabel(cost) {
   return parts.map(([k, v]) => `${v} ${CURRENCY_LABEL[k] || k}`).join(' + ');
 }
 
+// ---- bolso ----
+function renderPocketPanel() {
+  const box = document.getElementById('pocket-list');
+  box.innerHTML = '';
+  if (state.inventory.length === 0) {
+    box.appendChild(Object.assign(document.createElement('div'), {
+      className: 'inv-empty',
+      textContent: 'Nenhum peixe no bolso ainda. Lança a isca!',
+    }));
+    return;
+  }
+  for (const entry of state.inventory) {
+    const fish = FISH[entry.fishId];
+    if (!fish) continue;
+
+    const item = document.createElement('div');
+    item.className = 'pocket-item';
+
+    const c = document.createElement('canvas');
+    c.width = 40; c.height = 40;
+    drawFishIcon(c.getContext('2d'), fish.palette, 2, 2, 34);
+
+    const info = document.createElement('div');
+    info.className = 'pocket-info';
+    const name = document.createElement('div');
+    name.className = 'pocket-name';
+    name.textContent = fish.name;
+    const sub = document.createElement('div');
+    sub.className = 'pocket-sub';
+    sub.textContent = `${RARITY_LABEL[fish.rarity]} — ${fishSellValue(state, fish)} conchas cada`;
+    info.appendChild(name);
+    info.appendChild(sub);
+
+    const qty = document.createElement('span');
+    qty.className = 'pocket-qty';
+    qty.textContent = `×${entry.qty}`;
+
+    item.appendChild(c);
+    item.appendChild(info);
+    item.appendChild(qty);
+    box.appendChild(item);
+  }
+}
+
+// ---- mapa: estabelecimentos daqui + viagens ----
+function renderMapPanel() {
+  const loc = currentLocation();
+  document.getElementById('map-here-name').textContent = loc.name;
+
+  const venueBox = document.getElementById('map-venues');
+  venueBox.innerHTML = '';
+  const venues = venuesForLocation(loc.id);
+  if (venues.length === 0) {
+    venueBox.appendChild(Object.assign(document.createElement('div'), {
+      className: 'inv-empty', textContent: 'Nenhum estabelecimento por aqui.',
+    }));
+  }
+  for (const venue of venues) {
+    const unlocked = isVenueUnlocked(state, venue.id);
+    const rankOk = state.player.rank >= (venue.unlockRank || 1);
+    venueBox.appendChild(rowCard({
+      className: unlocked ? 'venue' : 'venue locked',
+      title: venue.name,
+      sub: unlocked
+        ? venue.description
+        : `Fechado — requer rank ${venue.unlockRank} e ${costLabel(venue.unlockCost)}`,
+      buttonLabel: unlocked ? 'Entrar' : 'Abrir',
+      disabled: !unlocked && (!rankOk || !canAfford(state, venue.unlockCost)),
+      onClick: () => {
+        if (!unlocked) {
+          const res = unlockVenue(state, venue.id);
+          if (!res.ok) { renderMapPanel(); return; }
+          pushToast(`🔓 ${venue.name} agora está aberto!`);
+          renderStatBar();
+          renderMapPanel();
+          saveNow();
+          return;
+        }
+        enterVenue(venue.id);
+      },
+    }));
+  }
+
+  const box = document.getElementById('map-locations');
+  box.innerHTML = '';
+  for (const place of sortedLocations()) {
+    const unlocked = isLocationUnlocked(state, place.id);
+    const here = state.locationId === place.id;
+    box.appendChild(rowCard({
+      title: place.name,
+      sub: unlocked ? place.description : `Requer rank ${place.unlockRank} — ${costLabel(place.unlockCost)}`,
+      buttonLabel: here ? 'Você está aqui' : unlocked ? 'Viajar' : 'Desbloquear',
+      disabled: here || (!unlocked && (state.player.rank < place.unlockRank || !canAfford(state, place.unlockCost))),
+      equipped: here,
+      onClick: () => {
+        if (unlocked) travelTo(state, place.id);
+        else if (unlockLocation(state, place.id).ok) travelTo(state, place.id);
+        renderMapPanel();
+        renderStatBar();
+        saveNow();
+      },
+    }));
+  }
+}
+
+function enterVenue(venueId) {
+  const venue = venueById(venueId);
+  if (!venue || !isVenueUnlocked(state, venueId)) return;
+  currentVenue = venue;
+  openPanel(venue.kind === 'cosmetics' ? 'panel-cosmetics' : 'panel-shop');
+}
+
 // ---- loja ----
 function renderShopPanel() {
-  document.getElementById('shop-vendor-name').textContent = currentLocation().vendor.name;
+  const name = currentVenue ? currentVenue.name : `Loja — ${currentLocation().vendor.name}`;
+  document.getElementById('shop-vendor-name').textContent = name;
 
   const invBox = document.getElementById('shop-inventory');
   invBox.innerHTML = '';
@@ -272,14 +371,14 @@ function renderShopPanel() {
       title: `${fish.name} × ${entry.qty}`,
       sub: `${RARITY_LABEL[fish.rarity]} — vale ${unitValue} conchas cada${bonusTag}`,
       buttonLabel: 'Vender 1',
-      onClick: () => { sellFish(state, fish.id, 1); renderShopPanel(); renderInventoryStrip(); renderTopBar(); },
+      onClick: () => { sellFish(state, fish.id, 1); renderShopPanel(); renderStatBar(); },
     }));
   }
 
   document.getElementById('btn-sell-all').onclick = () => {
     const total = sellAll(state);
     if (total > 0) pushToast(`💰 +${fmt(total)} conchas`);
-    renderShopPanel(); renderInventoryStrip(); renderTopBar();
+    renderShopPanel(); renderStatBar();
   };
 
   const eqBox = document.getElementById('shop-equipment');
@@ -292,7 +391,7 @@ function renderShopPanel() {
       sub: `Requer rank ${rod.rankReq} — ${costLabel(rod.cost)}`,
       buttonLabel: 'Comprar',
       disabled: state.player.rank < rod.rankReq || !canAfford(state, rod.cost),
-      onClick: () => { buyNextRod(state); renderShopPanel(); renderTopBar(); saveNow(); },
+      onClick: () => { buyNextRod(state); renderShopPanel(); renderStatBar(); saveNow(); },
     }));
   } else {
     eqBox.appendChild(rowCard({ title: 'Vara no nível máximo', buttonLabel: null }));
@@ -305,7 +404,7 @@ function renderShopPanel() {
       sub: `Requer rank ${bait.rankReq} — ${costLabel(bait.cost)}`,
       buttonLabel: 'Comprar',
       disabled: state.player.rank < bait.rankReq || !canAfford(state, bait.cost),
-      onClick: () => { buyNextBait(state); renderShopPanel(); renderTopBar(); saveNow(); },
+      onClick: () => { buyNextBait(state); renderShopPanel(); renderStatBar(); saveNow(); },
     }));
   } else {
     eqBox.appendChild(rowCard({ title: 'Isca no nível máximo', buttonLabel: null }));
@@ -317,15 +416,17 @@ function renderShopPanel() {
       sub: `Requer rank ${AUTO_FISH_UNLOCK.rankReq} — ${costLabel(AUTO_FISH_UNLOCK.cost)}`,
       buttonLabel: 'Comprar',
       disabled: state.player.rank < AUTO_FISH_UNLOCK.rankReq || !canAfford(state, AUTO_FISH_UNLOCK.cost),
-      onClick: () => { buyAutoFishUnlock(state); renderShopPanel(); renderTopBar(); saveNow(); },
+      onClick: () => { buyAutoFishUnlock(state); renderShopPanel(); renderStatBar(); saveNow(); },
     }));
   }
 }
 
-// ---- cosméticos ----
+// ---- cosméticos (ateliê) ----
 const SLOT_LABEL = { hat: 'Chapéu', outfit: 'Roupa', accessory: 'Acessório' };
 
 function renderCosmeticsPanel() {
+  document.getElementById('cosmetics-venue-name').textContent = currentVenue ? currentVenue.name : 'Cosméticos';
+
   const box = document.getElementById('cosmetics-slots');
   box.innerHTML = '';
   for (const slot of ['hat', 'outfit', 'accessory']) {
@@ -348,35 +449,11 @@ function renderCosmeticsPanel() {
           if (owned) equipCosmetic(state, item.id);
           else if (buyCosmetic(state, item.id).ok) equipCosmetic(state, item.id);
           renderCosmeticsPanel();
-          renderTopBar();
+          renderStatBar();
           saveNow();
         },
       }));
     }
-  }
-}
-
-// ---- mapa ----
-function renderMapPanel() {
-  const box = document.getElementById('map-locations');
-  box.innerHTML = '';
-  for (const loc of sortedLocations()) {
-    const unlocked = isLocationUnlocked(state, loc.id);
-    const here = state.locationId === loc.id;
-    box.appendChild(rowCard({
-      title: loc.name,
-      sub: unlocked ? loc.description : `Requer rank ${loc.unlockRank} — ${costLabel(loc.unlockCost)}`,
-      buttonLabel: here ? 'Você está aqui' : unlocked ? 'Viajar' : 'Desbloquear',
-      disabled: here || (!unlocked && (state.player.rank < loc.unlockRank || !canAfford(state, loc.unlockCost))),
-      equipped: here,
-      onClick: () => {
-        if (unlocked) travelTo(state, loc.id);
-        else if (unlockLocation(state, loc.id).ok) travelTo(state, loc.id);
-        renderMapPanel();
-        renderTopBar();
-        saveNow();
-      },
-    }));
   }
 }
 
@@ -392,8 +469,7 @@ function showOfflineModal() {
   if (offlineSummary.escamas > 0) parts.push(`+${offlineSummary.escamas} escamas.`);
   document.getElementById('offline-summary').textContent = parts.join(' ');
   document.getElementById('offline-modal').classList.remove('hidden');
-  renderInventoryStrip();
-  renderTopBar();
+  renderStatBar();
 }
 document.getElementById('btn-offline-close').addEventListener('click', () => {
   document.getElementById('offline-modal').classList.add('hidden');
@@ -416,8 +492,7 @@ document.addEventListener('visibilitychange', () => {
 startAutosave(() => { state.lastSeen = Date.now(); return state; }, 20000);
 
 // ---------- boot final ----------
-renderTopBar();
-renderInventoryStrip();
+renderStatBar();
 updateActionUI(fishingSession.snapshot());
 showOfflineModal();
 requestAnimationFrame((ts) => { lastTs = ts; lastWallMs = Date.now(); loop(ts); });

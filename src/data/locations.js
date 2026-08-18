@@ -1,6 +1,11 @@
 // locations.js — o "mapa": pontos que o jogador pode desbloquear e visitar.
-// Cada local tem sua paisagem (paleta), seu peixário e um NPC vendedor
-// com falas originais (nada copiado de jogo nenhum).
+// Cada local tem sua paisagem (paleta), seu peixário, um NPC vendedor com falas
+// originais (nada copiado de jogo nenhum) e os `venues`: os estabelecimentos que
+// existem ali. Loja e ateliê não são mais abas fixas — são lugares aonde se vai.
+//
+// venue.kind: 'shop' (vender peixe / comprar equipamento) | 'cosmetics' (ateliê)
+// venue.alwaysOpen: true = já funciona assim que o local é desbloqueado.
+// Sem alwaysOpen, o lugar precisa ser desbloqueado (rank + custo) uma vez.
 
 export const LOCATIONS = {
   ancoradouro: {
@@ -21,6 +26,15 @@ export const LOCATIONS = {
         'Isca fresquinha rende peixe mais graúdo.',
       ],
     },
+    venues: [
+      {
+        id: 'loja_ancoradouro',
+        kind: 'shop',
+        name: 'Barraca do Seu Tico',
+        description: 'Compra seu peixe e vende vara, isca e miudezas.',
+        alwaysOpen: true,
+      },
+    ],
   },
   enseada: {
     id: 'enseada',
@@ -40,6 +54,23 @@ export const LOCATIONS = {
         'A água tá um espelho hoje. Boa sorte na pesca.',
       ],
     },
+    venues: [
+      {
+        id: 'loja_enseada',
+        kind: 'shop',
+        name: 'Quiosque da Marina',
+        description: 'Paga um pouquinho melhor pelos achados do recife.',
+        alwaysOpen: true,
+      },
+      {
+        id: 'atelie_enseada',
+        kind: 'cosmetics',
+        name: 'Ateliê da Marina',
+        description: 'Chapéus e roupas costurados na varanda, de frente pro mar.',
+        unlockRank: 6,
+        unlockCost: { conchas: 120 },
+      },
+    ],
   },
   mar_aberto: {
     id: 'mar_aberto',
@@ -59,6 +90,23 @@ export const LOCATIONS = {
         'Garrafa com bilhete de novo? Alguém tá mandando recado.',
       ],
     },
+    venues: [
+      {
+        id: 'loja_mar_aberto',
+        kind: 'shop',
+        name: 'Convés da Capitã Ori',
+        description: 'Negocia de tudo, desde que você chegue inteiro.',
+        alwaysOpen: true,
+      },
+      {
+        id: 'bau_capita',
+        kind: 'cosmetics',
+        name: 'Baú da Capitã',
+        description: 'O que ela guardou de tanta viagem — e topa dividir.',
+        unlockRank: 14,
+        unlockCost: { escamas: 12 },
+      },
+    ],
   },
 };
 
@@ -68,4 +116,21 @@ export function sortedLocations() {
 
 export function isLocationUnlocked(state, locationId) {
   return state.unlockedLocations.includes(locationId);
+}
+
+export function venuesForLocation(locationId) {
+  const loc = LOCATIONS[locationId];
+  return loc && Array.isArray(loc.venues) ? loc.venues : [];
+}
+
+export function venueById(venueId) {
+  for (const loc of Object.values(LOCATIONS)) {
+    const found = (loc.venues || []).find((v) => v.id === venueId);
+    if (found) return { ...found, locationId: loc.id };
+  }
+  return null;
+}
+
+export function allVenueIds() {
+  return Object.values(LOCATIONS).flatMap((loc) => (loc.venues || []).map((v) => v.id));
 }

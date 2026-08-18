@@ -12,64 +12,87 @@
 <body>
   <div class="app-shell">
 
-    <div class="topbar drag-region">
-      <div class="rank-badge no-drag">
-        <span class="rank-label">Rank</span>
-        <span id="rank-value">1</span>
-      </div>
-
-      <div class="xp-wrap no-drag" title="Experiência">
-        <div class="xp-bar"><div id="xp-fill" class="xp-fill"></div></div>
-      </div>
-
-      <div class="currency-pill no-drag" title="Conchas">
-        <span class="coin coin-conchas"></span>
-        <span id="conchas-value">0</span>
-      </div>
-      <div class="currency-pill no-drag" title="Escamas">
-        <span class="coin coin-escamas"></span>
-        <span id="escamas-value">0</span>
-      </div>
-
+    <!-- cena: fundo transparente, a área de trabalho aparece atrás -->
+    <div class="scene-wrap drag-region">
+      <canvas id="scene" width="308" height="240"></canvas>
+      <div id="toast-container"></div>
+      <div id="location-tag"></div>
       <button id="btn-hide" class="icon-btn no-drag" title="Ocultar">–</button>
     </div>
 
-    <div class="scene-wrap">
-      <canvas id="scene" width="308" height="300"></canvas>
-      <div id="toast-container"></div>
-      <div id="location-tag"></div>
-    </div>
-
-    <div class="action-row">
-      <button id="btn-main-action" class="main-action">Lançar a isca</button>
-      <div id="reel-meter" class="reel-meter hidden">
-        <div id="reel-fill" class="reel-fill"></div>
+    <!-- painel de controle: as informações ficam logo abaixo da personagem -->
+    <div class="console-card">
+      <div class="statbar">
+        <div class="rank-badge" title="Rank">
+          <span class="rank-label">Rank</span>
+          <span id="rank-value">1</span>
+        </div>
+        <div class="xp-wrap" title="Experiência">
+          <div class="xp-bar"><div id="xp-fill" class="xp-fill"></div></div>
+        </div>
+        <div class="currency-pill" title="Conchas">
+          <span class="coin coin-conchas"></span>
+          <span id="conchas-value">0</span>
+        </div>
+        <div class="currency-pill" title="Escamas">
+          <span class="coin coin-escamas"></span>
+          <span id="escamas-value">0</span>
+        </div>
       </div>
-      <div id="wait-indicator" class="wait-indicator hidden">à espera de uma fisgada…</div>
-    </div>
 
-    <div id="auto-fish-row" class="auto-fish-row hidden">
-      <label class="switch">
-        <input type="checkbox" id="auto-fish-toggle" />
-        <span class="slider"></span>
-      </label>
-      <span>Assistente de pesca automática</span>
-    </div>
+      <div class="action-row">
+        <button id="btn-main-action" class="main-action">Lançar a isca</button>
+        <div id="reel-meter" class="reel-meter hidden">
+          <div id="reel-fill" class="reel-fill"></div>
+        </div>
+        <div id="wait-indicator" class="wait-indicator hidden">à espera de uma fisgada…</div>
+      </div>
 
-    <div class="tabbar">
-      <button class="tab-btn" data-panel="panel-shop">Loja</button>
-      <button class="tab-btn" data-panel="panel-cosmetics">Cosméticos</button>
-      <button class="tab-btn" data-panel="panel-map">Mapa</button>
-    </div>
+      <div id="auto-fish-row" class="auto-fish-row hidden">
+        <label class="switch">
+          <input type="checkbox" id="auto-fish-toggle" />
+          <span class="slider"></span>
+        </label>
+        <span>Assistente de pesca automática</span>
+      </div>
 
-    <div id="inventory-strip" class="inventory-strip"></div>
+      <div class="tabbar">
+        <button class="tab-btn" data-panel="panel-map">Mapa</button>
+        <button class="tab-btn" data-panel="panel-pocket">
+          Bolso<span id="pocket-count" class="tab-count">0</span>
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- painéis (modais internos) -->
+  <div id="panel-pocket" class="panel hidden">
+    <div class="panel-header">
+      <h2>Bolso</h2>
+      <button class="panel-close" data-close="panel-pocket">×</button>
+    </div>
+    <div class="panel-body">
+      <div id="pocket-list" class="pocket-list"></div>
+    </div>
+  </div>
+
+  <div id="panel-map" class="panel hidden">
+    <div class="panel-header">
+      <h2>Mapa</h2>
+      <button class="panel-close" data-close="panel-map">×</button>
+    </div>
+    <div class="panel-body">
+      <div class="section-title">Aqui — <span id="map-here-name"></span></div>
+      <div id="map-venues"></div>
+      <div class="section-title">Viajar</div>
+      <div id="map-locations"></div>
+    </div>
+  </div>
+
   <div id="panel-shop" class="panel hidden">
     <div class="panel-header">
-      <h2>Loja — <span id="shop-vendor-name"></span></h2>
-      <button class="panel-close" data-close="panel-shop">×</button>
+      <h2 id="shop-vendor-name"></h2>
+      <button class="panel-close" data-close="panel-shop" data-back="panel-map">×</button>
     </div>
     <div class="panel-body">
       <section>
@@ -86,21 +109,11 @@
 
   <div id="panel-cosmetics" class="panel hidden">
     <div class="panel-header">
-      <h2>Cosméticos</h2>
-      <button class="panel-close" data-close="panel-cosmetics">×</button>
+      <h2 id="cosmetics-venue-name">Cosméticos</h2>
+      <button class="panel-close" data-close="panel-cosmetics" data-back="panel-map">×</button>
     </div>
     <div class="panel-body">
       <div id="cosmetics-slots"></div>
-    </div>
-  </div>
-
-  <div id="panel-map" class="panel hidden">
-    <div class="panel-header">
-      <h2>Mapa</h2>
-      <button class="panel-close" data-close="panel-map">×</button>
-    </div>
-    <div class="panel-body">
-      <div id="map-locations"></div>
     </div>
   </div>
 

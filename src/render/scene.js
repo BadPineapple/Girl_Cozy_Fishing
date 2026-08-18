@@ -1,13 +1,16 @@
-// scene.js — desenha o "mundo": céu (com ciclo dia/noite real, baseado no
-// relógio do sistema), água, a jangada, o personagem e o NPC vendedor.
+// scene.js — desenha só o que é "o mundo mesmo": a água, a jangada, o
+// personagem e o NPC vendedor. O céu foi removido de propósito — o topo do
+// canvas fica transparente e quem aparece atrás é a própria área de trabalho.
+// O ciclo dia/noite continua vivo, agora tingindo a água (e a luz do casal).
 
 import { drawChibi, drawBobber } from './pixelSprites.js';
 import { COSMETICS } from '../data/cosmetics.js';
 import { LOCATIONS } from '../data/locations.js';
 
 const CANVAS_W = 308;
-const CANVAS_H = 300;
+const CANVAS_H = 240;
 const CHAR_SCALE = 7;
+const WATER_Y = Math.round(CANVAS_H * 0.62); // linha d'água
 
 function nightFactor(date = new Date()) {
   const h = date.getHours() + date.getMinutes() / 60;
@@ -24,21 +27,9 @@ function lerpColor(hexA, hexB, t) {
 }
 
 function hexToRgb(hex) {
-  const clean = hex.replace('#', '');
+  const clean = String(hex).replace('#', '');
   const bigint = parseInt(clean, 16);
   return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 };
-}
-
-let starSeeds = null;
-function getStars() {
-  if (starSeeds) return starSeeds;
-  starSeeds = Array.from({ length: 22 }, () => ({
-    x: Math.random() * CANVAS_W,
-    y: Math.random() * (CANVAS_H * 0.55),
-    r: Math.random() * 1.4 + 0.4,
-    tw: Math.random() * Math.PI * 2,
-  }));
-  return starSeeds;
 }
 
 function equippedColors(state) {
@@ -55,58 +46,27 @@ function equippedColors(state) {
 
 export function renderScene(ctx, state, runtime) {
   const loc = LOCATIONS[state.locationId] || LOCATIONS.ancoradouro;
-  const now = new Date();
-  const night = nightFactor(now);
+  const night = nightFactor(new Date());
   const t = performance.now() / 1000;
 
-  ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+  ctx.clearRect(0, 0, CANVAS_W, CANVAS_H); // topo continua transparente
   ctx.imageSmoothingEnabled = false;
 
-  // céu
-  const skyTop = lerpColor(loc.sky.top, '#05070f', night * 0.6);
-  const skyBottom = lerpColor(loc.sky.bottom, '#141225', night * 0.75);
-  const grad = ctx.createLinearGradient(0, 0, 0, CANVAS_H * 0.6);
-  grad.addColorStop(0, skyTop);
-  grad.addColorStop(1, skyBottom);
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H * 0.62);
-
-  // estrelas (só aparecem à noite)
-  if (night > 0.25) {
-    ctx.globalAlpha = (night - 0.25) * 1.2;
-    for (const s of getStars()) {
-      const tw = 0.5 + 0.5 * Math.sin(t * 1.5 + s.tw);
-      ctx.fillStyle = `rgba(255,255,255,${0.4 + 0.6 * tw})`;
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-  }
-
-  // sol/lua
-  const sunX = CANVAS_W * 0.78;
-  const sunY = CANVAS_H * 0.14 + 8 * Math.sin(t * 0.2);
-  ctx.fillStyle = night > 0.5 ? '#f2e9e4' : '#ffe9b0';
-  ctx.globalAlpha = 0.9;
-  ctx.beginPath();
-  ctx.arc(sunX, sunY, night > 0.5 ? 9 : 12, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalAlpha = 1;
-
-  // água
-  const waterY = CANVAS_H * 0.6;
-  const waterGrad = ctx.createLinearGradient(0, waterY, 0, CANVAS_H);
-  waterGrad.addColorStop(0, lerpColor(loc.water, '#02040a', night * 0.55));
-  waterGrad.addColorStop(1, lerpColor('#05141a', '#01030a', night * 0.4));
+  // água — a borda de cima ganha um degradê curto pra não virar um corte seco
+  // contra a área de trabalho.
+  const waterTop = lerpColor(loc.water, '#02040a', night * 0.55);
+  const waterBottom = lerpColor('#05141a', '#01030a', night * 0.4);
+  const waterGrad = ctx.createLinearGradient(0, WATER_Y, 0, CANVAS_H);
+  waterGrad.addColorStop(0, waterTop);
+  waterGrad.addColorStop(1, waterBottom);
   ctx.fillStyle = waterGrad;
-  ctx.fillRect(0, waterY, CANVAS_W, CANVAS_H - waterY);
+  ctx.fillRect(0, WATER_Y, CANVAS_W, CANVAS_H - WATER_Y);
 
   // ondulações simples
   ctx.strokeStyle = `rgba(255,255,255,${0.08 + 0.04 * Math.sin(t)})`;
   ctx.lineWidth = 1;
-  for (let i = 0; i < 4; i++) {
-    const ly = waterY + 14 + i * 16 + Math.sin(t * 0.8 + i) * 2;
+  for (let i = 0; i < 3; i++) {
+    const ly = WATER_Y + 16 + i * 18 + Math.sin(t * 0.8 + i) * 2;
     ctx.beginPath();
     ctx.moveTo(0, ly);
     for (let x = 0; x <= CANVAS_W; x += 12) {
@@ -116,7 +76,7 @@ export function renderScene(ctx, state, runtime) {
   }
 
   // jangada/doca
-  const raftY = waterY - 6;
+  const raftY = WATER_Y - 6;
   ctx.fillStyle = '#6b4a2f';
   ctx.fillRect(CANVAS_W * 0.12, raftY, CANVAS_W * 0.76, 12);
   ctx.fillStyle = '#4a331f';
@@ -160,7 +120,7 @@ export function renderScene(ctx, state, runtime) {
     const rodTipX = charX + CHAR_SCALE * 15;
     const rodTipY = charY + CHAR_SCALE * 10;
     const bobberX = Math.min(CANVAS_W - 24, rodTipX + 46);
-    const bobberY = waterY + 10;
+    const bobberY = WATER_Y + 10;
     ctx.strokeStyle = '#c9a35a';
     ctx.lineWidth = 1.4;
     ctx.beginPath();
@@ -169,6 +129,15 @@ export function renderScene(ctx, state, runtime) {
     ctx.stroke();
     const bobberBob = phase === 'waiting' ? Math.sin(t * 6) * 2 : Math.sin(t * 2) * 1.5;
     drawBobber(ctx, bobberX, bobberY, bobberBob);
+  }
+
+  // brilho quente à noite, saindo da lamparina imaginária da jangada
+  if (night > 0.35) {
+    const glow = ctx.createRadialGradient(charX + 30, raftY - 10, 4, charX + 30, raftY - 10, 90);
+    glow.addColorStop(0, `rgba(255, 196, 110, ${0.16 * night})`);
+    glow.addColorStop(1, 'rgba(255, 196, 110, 0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
   }
 }
 
