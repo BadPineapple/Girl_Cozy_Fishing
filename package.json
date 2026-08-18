@@ -13,8 +13,8 @@
     "dist:linux": "electron-builder --linux"
   },
   "devDependencies": {
-    "electron": "^31.3.0",
-    "electron-builder": "^24.13.3"
+    "electron": "^43.4.0",
+    "electron-builder": "^26.15.3"
   },
   "build": {
     "appId": "com.natz.marecozyfishing",
@@ -23,8 +23,19 @@
       "**/*",
       "!README.md"
     ],
-    "win": { "target": "nsis" },
-    "mac": { "target": "dmg", "category": "public.app-category.games" },
-    "linux": { "target": "AppImage" }
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.games"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  },
+  "allowScripts": {
+    "electron@43.4.0": true,
+    "electron-winstaller": false
   }
 }
