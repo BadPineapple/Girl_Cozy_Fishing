@@ -84,16 +84,9 @@ export function renderScene(ctx, state, runtime) {
     ctx.fillRect(CANVAS_W * 0.12 + i * (CANVAS_W * 0.76) / 8, raftY, 2, 12);
   }
 
-  // NPC vendedor, sentado do lado direito da jangada
-  const vendorBob = Math.sin(t * 1.1) * 1.5;
-  drawChibi(ctx, {
-    x: CANVAS_W * 0.62, y: raftY - 118, scale: CHAR_SCALE * 0.82,
-    skin: '#e3bd93',
-    hair: loc.vendor.palette[1],
-    outfit: loc.vendor.palette[0],
-    boot: loc.vendor.palette[2],
-    bobOffset: vendorBob,
-  });
+  // O vendedor não fica mais na jangada: agora ele atende no estabelecimento
+  // dele (ver `venues` em data/locations.js), que se visita pelo Mapa.
+  // A jangada é só da personagem.
 
   // personagem principal
   const colors = equippedColors(state);
