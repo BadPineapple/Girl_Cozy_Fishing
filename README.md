@@ -10,6 +10,10 @@ auto-fish com ganhos offline. **Toda a arte é original**, gerada por código
 (pixel art bem simples desenhada em `<canvas>`) — nada foi copiado do jogo de
 referência, só a ideia geral da mecânica.
 
+> **Duas versões no mesmo repositório:** a original em Electron está na raiz, e
+> um porte completo para **Godot 4.7** vive em [`girl-cozy-fishing/`](girl-cozy-fishing/README.md).
+> As duas têm as mesmas regras, os mesmos ids e o mesmo formato de save.
+
 ## Rodando
 
 ```bash
