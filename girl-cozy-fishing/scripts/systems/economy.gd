@@ -44,10 +44,10 @@ static func add_xp(state: Dictionary, amount: int) -> int:
 	# com um save adulterado zerando esse campo, o laço rodava pra sempre.
 	while int(player["xp"]) >= int(player["xpToNext"]):
 		if int(player["xpToNext"]) <= 0:
-			player["xpToNext"] = GameState.xp_for_rank(int(player["rank"]))
+			player["xpToNext"] = StateFormat.xp_for_rank(int(player["rank"]))
 			break
 		player["xp"] = int(player["xp"]) - int(player["xpToNext"])
 		player["rank"] = int(player["rank"]) + 1
-		player["xpToNext"] = GameState.xp_for_rank(int(player["rank"]))
+		player["xpToNext"] = StateFormat.xp_for_rank(int(player["rank"]))
 		ranks_gained += 1
 	return ranks_gained

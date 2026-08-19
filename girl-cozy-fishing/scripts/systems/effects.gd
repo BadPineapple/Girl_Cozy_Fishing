@@ -9,7 +9,7 @@ extends RefCounted
 
 
 static func active_effect(state: Dictionary, now_ms: float = -1.0) -> Dictionary:
-	var now := now_ms if now_ms >= 0.0 else GameState.now_ms()
+	var now := now_ms if now_ms >= 0.0 else StateFormat.now_ms()
 	var evt: Variant = state.get("activeEvent")
 	if typeof(evt) != TYPE_DICTIONARY or (evt as Dictionary).is_empty():
 		return {}

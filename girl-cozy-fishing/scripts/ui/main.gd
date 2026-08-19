@@ -59,8 +59,8 @@ func _ready() -> void:
 
 	# O que o assistente rendeu enquanto o jogo estava fechado.
 	var offline := OfflineEarnings.compute(state, Effects.live_rare_bonus(state))
-	state["lastSeen"] = GameState.now_ms()
-	_last_wall_ms = GameState.now_ms()
+	state["lastSeen"] = StateFormat.now_ms()
+	_last_wall_ms = StateFormat.now_ms()
 
 	_refresh_status()
 	_on_phase_changed(_session.snapshot())
@@ -742,7 +742,7 @@ func _process(delta: float) -> void:
 
 	# O assistente conta pelo relógio de parede, não pelo tempo de frame: com a
 	# janela minimizada o processamento pode parar, e aí ele parava junto.
-	var now := GameState.now_ms()
+	var now := StateFormat.now_ms()
 	var wall_dt := clampf(now - _last_wall_ms, 0.0, MAX_WALL_DT_MS)
 	_last_wall_ms = now
 
@@ -825,7 +825,7 @@ func _refresh_status() -> void:
 	_conchas_label.text = UiKit.format_number(int(state["currencies"]["conchas"]))
 	_escamas_label.text = UiKit.format_number(int(state["currencies"]["escamas"]))
 	_location_label.text = MapSystem.current_location(state)["name"]
-	_pocket_tab.text = "Bolso %s" % UiKit.format_number(GameState.total_fish(state))
+	_pocket_tab.text = "Bolso %s" % UiKit.format_number(StateFormat.total_fish(state))
 	_auto_row.visible = bool(state["autoFish"]["unlocked"])
 	_auto_check.set_pressed_no_signal(bool(state["autoFish"]["enabled"]))
 

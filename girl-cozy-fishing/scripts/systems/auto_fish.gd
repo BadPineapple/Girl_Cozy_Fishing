@@ -25,7 +25,7 @@ static func simulate_catch(state: Dictionary, rare_bonus: float = 0.0) -> Dictio
 	if fish.is_empty():
 		return {}
 
-	GameState.add_inventory(state, fish["id"], 1)
+	StateFormat.add_inventory(state, fish["id"], 1)
 	var xp_gain := maxi(1, roundi(float(fish["xp"]) * XP_MULT))
 	Economy.add_xp(state, xp_gain)
 

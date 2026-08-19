@@ -26,7 +26,7 @@ static func sell_fish(state: Dictionary, fish_id: String, qty: int) -> int:
 	if sell_qty <= 0:
 		return 0
 
-	GameState.remove_inventory(state, fish_id, sell_qty)
+	StateFormat.remove_inventory(state, fish_id, sell_qty)
 	var gain := fish_sell_value(state, fish) * sell_qty
 	Economy.add_currency(state, "conchas", gain)
 	state["stats"]["totalSoldConchas"] = int(state["stats"]["totalSoldConchas"]) + gain

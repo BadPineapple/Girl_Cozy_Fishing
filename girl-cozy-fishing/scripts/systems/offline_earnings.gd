@@ -15,7 +15,7 @@ static func compute(state: Dictionary, rare_bonus: float = 0.0) -> Dictionary:
 	if not bool(state["autoFish"]["unlocked"]) or not bool(state["autoFish"]["enabled"]):
 		return {}
 
-	var now := GameState.now_ms()
+	var now := StateFormat.now_ms()
 	var elapsed := clampf(now - float(state["lastSeen"]), 0.0, MAX_OFFLINE_MS)
 	var interval := AutoFish.INTERVAL_MS * INTERVAL_MULT
 	var attempts := int(floor(elapsed / interval))

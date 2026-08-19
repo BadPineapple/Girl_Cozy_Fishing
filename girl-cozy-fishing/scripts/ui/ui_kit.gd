@@ -140,12 +140,12 @@ static func progress_bar(fill: Color, track := Color(0, 0, 0, 0.35), height := 1
 	bar.value = 0.0
 	bar.custom_minimum_size.y = height
 
-	var bg := stylebox(track, height / 2)
+	var bg := stylebox(track, roundi(height / 2.0))
 	bg.content_margin_left = 0
 	bg.content_margin_right = 0
 	bg.content_margin_top = 0
 	bg.content_margin_bottom = 0
-	var fg := stylebox(fill, height / 2)
+	var fg := stylebox(fill, roundi(height / 2.0))
 	fg.content_margin_left = 0
 	fg.content_margin_right = 0
 	fg.content_margin_top = 0

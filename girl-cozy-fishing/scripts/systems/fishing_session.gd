@@ -107,7 +107,7 @@ func _resolve_catch() -> void:
 	var caught_fish := _fish
 	var xp_gain := maxi(1, roundi(float(caught_fish["xp"]) * Effects.xp_multiplier(_state)))
 
-	GameState.add_inventory(_state, caught_fish["id"], 1)
+	StateFormat.add_inventory(_state, caught_fish["id"], 1)
 	var ranks_gained := Economy.add_xp(_state, xp_gain)
 	var escamas := FishData.escamas_of(caught_fish)
 	if escamas > 0:

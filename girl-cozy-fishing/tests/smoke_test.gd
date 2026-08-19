@@ -39,7 +39,7 @@ func _check(label: String, condition: bool, detail: String = "") -> void:
 
 
 func _fresh_state() -> Dictionary:
-	return GameState.merge_with_defaults({})
+	return StateFormat.merge_with_defaults({})
 
 
 func _test_fishing_loop() -> void:
@@ -70,7 +70,7 @@ func _test_event_value_multiplier() -> void:
 	state["activeEvent"] = {
 		"id": "brisa_da_sorte", "title": "t", "icon": "#fff",
 		"effect": {"value_multiplier": 1.3},
-		"expiresAt": GameState.now_ms() + 60000.0,
+		"expiresAt": StateFormat.now_ms() + 60000.0,
 	}
 	var boosted := ShopSystem.sell_fish(state, "lambari", 5)
 	_check("venda com evento rende mais", boosted > plain, "(%d -> %d)" % [plain, boosted])
@@ -78,13 +78,13 @@ func _test_event_value_multiplier() -> void:
 
 func _test_corrupt_save_does_not_hang() -> void:
 	print("\n[3] save corrompido não trava a subida de rank")
-	var state := GameState.merge_with_defaults({"player": {"rank": 3, "xp": 999, "xpToNext": 0}})
+	var state := StateFormat.merge_with_defaults({"player": {"rank": 3, "xp": 999, "xpToNext": 0}})
 	_check("xpToNext consertado na leitura", int(state["player"]["xpToNext"]) > 0,
 		"(%d)" % int(state["player"]["xpToNext"]))
 	Economy.add_xp(state, 5000)
 	_check("subiu de rank sem travar", int(state["player"]["rank"]) > 3, "(rank %d)" % int(state["player"]["rank"]))
 
-	var junk := GameState.merge_with_defaults({
+	var junk := StateFormat.merge_with_defaults({
 		"player": {"rank": "abc"},
 		"currencies": {"conchas": -50},
 		"locationId": "lugar_que_nao_existe",
@@ -121,7 +121,7 @@ func _test_offline_earnings() -> void:
 	print("\n[5] ganhos offline")
 	var state := _fresh_state()
 	state["autoFish"] = {"unlocked": true, "enabled": true}
-	state["lastSeen"] = GameState.now_ms() - 3.0 * 3600.0 * 1000.0
+	state["lastSeen"] = StateFormat.now_ms() - 3.0 * 3600.0 * 1000.0
 
 	var summary := OfflineEarnings.compute(state, 10.0)
 	_check("3h fora rendem alguma coisa", not summary.is_empty() and int(summary["catches"]) > 0,
@@ -129,7 +129,7 @@ func _test_offline_earnings() -> void:
 
 	var capped := _fresh_state()
 	capped["autoFish"] = {"unlocked": true, "enabled": true}
-	capped["lastSeen"] = GameState.now_ms() - 100.0 * 3600.0 * 1000.0
+	capped["lastSeen"] = StateFormat.now_ms() - 100.0 * 3600.0 * 1000.0
 	var capped_summary := OfflineEarnings.compute(capped, 0.0)
 	var max_attempts := int(OfflineEarnings.MAX_OFFLINE_MS / (AutoFish.INTERVAL_MS * OfflineEarnings.INTERVAL_MULT))
 	_check("ausência longa respeita o teto de 8h", int(capped_summary["attempts"]) <= max_attempts,
@@ -185,14 +185,14 @@ func _test_save_round_trip() -> void:
 	var state := _fresh_state()
 	state["player"]["rank"] = 7
 	state["currencies"]["conchas"] = 1234
-	GameState.add_inventory(state, "peixe_lanterna", 3)
+	StateFormat.add_inventory(state, "peixe_lanterna", 3)
 	state["unlockedVenues"] = ["atelie_enseada"]
 
 	_check("gravou o arquivo", SaveSystem.save_state(state))
-	var loaded := GameState.merge_with_defaults(SaveSystem.load_state())
+	var loaded := StateFormat.merge_with_defaults(SaveSystem.load_state())
 	_check("rank preservado", int(loaded["player"]["rank"]) == 7)
 	_check("moeda preservada", int(loaded["currencies"]["conchas"]) == 1234)
-	_check("peixe preservado", GameState.total_fish(loaded) == 3)
+	_check("peixe preservado", StateFormat.total_fish(loaded) == 3)
 	_check("ateliê continua aberto", loaded["unlockedVenues"].has("atelie_enseada"))
 	_check("nenhum .tmp sobrou", not FileAccess.file_exists(SaveSystem.TMP_PATH))
 	print("  (arquivo em %s)" % SaveSystem.save_location())
