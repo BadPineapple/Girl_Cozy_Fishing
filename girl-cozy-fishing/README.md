@@ -10,6 +10,8 @@ arquivo de imagem: a personagem, a água e os ícones de peixe são desenhados e
 
 ## Rodando
 
+A janela é uma faixa deitada de 460x230, ancorada no canto inferior direito.
+
 Abra a pasta `girl-cozy-fishing/` no Godot 4.7 e dê play, ou pela linha de
 comando:
 
@@ -25,6 +27,18 @@ Interação:
   da tela e sair.
 - **`–`** minimiza. Diferente do Electron, aqui a janela volta pela barra de
   tarefas — o Godot não expõe ícone de bandeja (veja *Diferenças* abaixo).
+
+## Capturando a tela
+
+Pra conferir layout e cor sem ficar abrindo o jogo na mão:
+
+```bash
+godot --path girl-cozy-fishing tests/screenshot.tscn
+godot --path girl-cozy-fishing tests/screenshot.tscn -- --panel=map
+```
+
+Salva um PNG (com o fundo transparente, como o widget é de verdade) em
+`user://shot.png`. Precisa de janela — não roda em `--headless`.
 
 ## Teste de fumaça
 
@@ -52,7 +66,8 @@ scripts/
     equipment_data.gd     varas, iscas, o "assistente de pesca"
     events_data.gd        eventos aleatórios temporários
   systems/              lógica pura (funções estáticas que recebem/alteram o estado)
-    game_state.gd        autoload: formato do save, defaults e a validação da leitura
+    state_format.gd      formato do save: defaults e a validação da leitura
+    game_state.gd        autoload: a partida em andamento
     save_system.gd        autoload: grava/lê user://mare-save.json com troca segura
     effects.gd             leitura central dos efeitos do evento ativo
     economy.gd             moeda, xp, subida de rank
@@ -64,14 +79,16 @@ scripts/
     auto_fish.gd           pescaria automática (conta pelo relógio de parede)
     offline_earnings.gd    o que o assistente rendeu com o jogo fechado
   render/
-    pixel_sprites.gd       personagem em blocos + ícone de peixe
-    scene_view.gd          água, jangada, personagem, ciclo dia/noite
+    pixel_sprites.gd       personagem em blocos (com contorno) + ícones
+    scene_view.gd          água, doca, personagem, ilha, ciclo dia/noite
     fish_icon.gd            Control que desenha um peixe (usado no Bolso)
+    coin_icon.gd            Control que desenha concha/escama
   ui/
     ui_kit.gd              paleta, fontes e as peças de interface (o antigo CSS)
     main.gd                monta a tela, roda o game loop e liga tudo
 tests/
   smoke_test.gd          checagem das regras, sem janela
+  screenshot.gd           captura a interface num PNG
 ```
 
 ## Como estender
@@ -116,3 +133,21 @@ As correções feitas na versão Electron vieram todas para cá, não só o visu
 - O assistente de pesca conta pelo relógio de parede, então não para quando a
   janela é minimizada.
 - A cena respeita a proporção original em vez de ser esticada.
+
+## Direção de arte
+
+O widget mora por cima de um papel de parede qualquer, e isso manda em tudo:
+
+- **Faixa deitada, não telinha de celular.** 460x230 em vez de 340x450 — 31%%
+  menos área e formato de canto de tela.
+- **Uma barra de controle só.** Eram seis faixas empilhadas; o medidor de puxada
+  virou o preenchimento do próprio botão de ação, o aviso de espera saiu (o
+  botão já dizia), o assistente virou um botão que só aparece depois de comprado
+  e o XP virou um fio na base da barra.
+- **Contorno em tudo.** Cada bloco do sprite é desenhado duas vezes: escuro e
+  inflado, depois colorido. É o que impede a personagem de sumir num fundo
+  claro.
+- **Um acento só.** Barra escura translúcida, texto creme e o coral reservado
+  pro botão de ação. A carta bege grande de antes brigava com qualquer fundo.
+- **Sem emoji.** As fontes pixel não têm esses glifos: apareciam como quadrados
+  vazios.

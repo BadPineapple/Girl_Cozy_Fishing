@@ -1,22 +1,32 @@
 # ui_kit.gd — a paleta e as pecinhas de interface, no lugar do que era o CSS.
-# Tudo é montado por código: a cena principal fica sendo só um Control vazio, o
-# que evita depender de um .tscn gigante e mantém o visual num arquivo só.
+#
+# Direção de arte: o widget mora por cima de um papel de parede qualquer. Uma
+# carta bege grande (o que tinha antes) briga com qualquer fundo e domina a
+# tela; uma barra escura translúcida some no ambiente e deixa o holofote na
+# personagem. Daí a paleta ter só um acento forte — o coral do botão de ação —
+# e todo o resto ser madeira escura com texto creme.
 
 class_name UiKit
 extends RefCounted
 
-# Mesma paleta do widget original (as variáveis :root do CSS).
-const SKY_DUSK := Color("#3b4a6b")
-const TIDE_TEAL := Color("#2e6e75")
-const DRIFTWOOD := Color("#6b4a2f")
-const DRIFTWOOD_DARK := Color("#4a331f")
-const SAND_CREAM := Color("#f2e3c9")
-const EMBER_CORAL := Color("#e8734a")
-const EMBER_CORAL_DARK := Color("#a94a26")
-const MOSS_GREEN := Color("#7a9b6e")
+# --- superfícies ---
+const DOCK_BG := Color(0.13, 0.09, 0.07, 0.93)      # barra de controle
+const DOCK_EDGE := Color(1, 1, 1, 0.10)             # brilho de 1px no topo
+const PANEL_BG := Color(0.15, 0.11, 0.08, 0.98)     # painéis (mapa, bolso, loja)
+const SLOT_BG := Color(1, 1, 1, 0.06)               # linhas de lista
+const SLOT_BG_ON := Color(0.48, 0.61, 0.43, 0.20)   # linha destacada
+
+# --- tinta ---
+const CREAM := Color("#f2e3c9")
+const CREAM_DIM := Color(0.95, 0.89, 0.79, 0.62)
 const INK := Color("#2a1c10")
-const PANEL_BG := Color("#f2e3c9")
-const CARD_TOP := Color("#efe0bd")
+
+# --- acentos ---
+const CORAL := Color("#e8734a")
+const MOSS := Color("#8fae6b")
+const DRIFTWOOD := Color("#6b4a2f")
+const SHELL := Color("#f2e3c9")
+const SCALE_BLUE := Color("#9fd8e8")
 
 const FONT_BODY_PATH := "res://assets/fonts/vt323.woff2"
 const FONT_DISPLAY_PATH := "res://assets/fonts/press-start-2p.woff2"
@@ -65,74 +75,80 @@ static func apply_font(control: Control, display := false, font_size := 16) -> v
 	control.add_theme_font_size_override("font_size", font_size)
 
 
-static func stylebox(bg: Color, radius := 8, border := 0, border_color := Color(0, 0, 0, 0)) -> StyleBoxFlat:
+static func stylebox(bg: Color, radius := 8, pad_x := 8, pad_y := 4) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = bg
 	sb.corner_radius_top_left = radius
 	sb.corner_radius_top_right = radius
 	sb.corner_radius_bottom_left = radius
 	sb.corner_radius_bottom_right = radius
-	if border > 0:
-		sb.border_width_left = border
-		sb.border_width_right = border
-		sb.border_width_top = border
-		sb.border_width_bottom = border
-		sb.border_color = border_color
-	sb.content_margin_left = 8
-	sb.content_margin_right = 8
-	sb.content_margin_top = 5
-	sb.content_margin_bottom = 5
+	sb.content_margin_left = pad_x
+	sb.content_margin_right = pad_x
+	sb.content_margin_top = pad_y
+	sb.content_margin_bottom = pad_y
 	return sb
 
 
-static func label(text: String, font_size := 16, color := INK, display := false) -> Label:
+static func label(text: String, font_size := 16, color := CREAM, display := false) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.add_theme_color_override("font_color", color)
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	apply_font(l, display, font_size)
 	return l
 
 
-# variant: "primary" (coral), "soft" (verde), "wood" (madeira), "ghost" (escuro)
-static func button(text: String, variant := "primary", font_size := 16) -> Button:
+# variant: "primary" (coral), "soft" (verde), "quiet" (translúcido)
+static func button(text: String, variant := "primary", font_size := 16, pad_x := 10) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.focus_mode = Control.FOCUS_NONE
 	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
-	var bg := EMBER_CORAL
-	var fg := Color.WHITE
+	var bg := CORAL
+	var fg := Color("#3a1a0e")
 	match variant:
 		"soft":
-			bg = MOSS_GREEN
+			bg = MOSS
 			fg = Color("#1c2b18")
-		"wood":
-			bg = DRIFTWOOD
-			fg = SAND_CREAM
-		"ghost":
-			bg = Color(0.08, 0.05, 0.03, 0.55)
-			fg = SAND_CREAM
+		"quiet":
+			bg = Color(1, 1, 1, 0.10)
+			fg = CREAM
 
-	b.add_theme_stylebox_override("normal", stylebox(bg))
-	b.add_theme_stylebox_override("hover", stylebox(bg.lightened(0.08)))
-	b.add_theme_stylebox_override("pressed", stylebox(bg.darkened(0.15)))
-	b.add_theme_stylebox_override("disabled", stylebox(Color(bg.r, bg.g, bg.b, 0.35)))
+	b.add_theme_stylebox_override("normal", stylebox(bg, 8, pad_x, 5))
+	b.add_theme_stylebox_override("hover", stylebox(bg.lightened(0.12), 8, pad_x, 5))
+	b.add_theme_stylebox_override("pressed", stylebox(bg.darkened(0.18), 8, pad_x, 5))
+	b.add_theme_stylebox_override("disabled", stylebox(Color(bg.r, bg.g, bg.b, bg.a * 0.35), 8, pad_x, 5))
 	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	b.add_theme_color_override("font_color", fg)
 	b.add_theme_color_override("font_hover_color", fg)
 	b.add_theme_color_override("font_pressed_color", fg)
-	b.add_theme_color_override("font_disabled_color", Color(fg.r, fg.g, fg.b, 0.5))
+	b.add_theme_color_override("font_disabled_color", Color(fg.r, fg.g, fg.b, 0.45))
 	apply_font(b, false, font_size)
 	return b
 
 
-static func panel(bg: Color, radius := 8, border := 0, border_color := Color(0, 0, 0, 0)) -> PanelContainer:
+static func panel(bg: Color, radius := 8, pad_x := 8, pad_y := 4) -> PanelContainer:
 	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", stylebox(bg, radius, border, border_color))
+	p.add_theme_stylebox_override("panel", stylebox(bg, radius, pad_x, pad_y))
 	return p
 
 
-static func progress_bar(fill: Color, track := Color(0, 0, 0, 0.35), height := 10) -> ProgressBar:
+# A barra de controle: madeira escura translúcida com um fio de luz no topo,
+# que é o que dá o volume sem precisar de borda grossa.
+static func dock_panel(radius := 12) -> PanelContainer:
+	var p := PanelContainer.new()
+	var sb := stylebox(DOCK_BG, radius, 8, 6)
+	sb.border_width_top = 1
+	sb.border_color = DOCK_EDGE
+	sb.shadow_color = Color(0, 0, 0, 0.35)
+	sb.shadow_size = 6
+	sb.shadow_offset = Vector2(0, 2)
+	p.add_theme_stylebox_override("panel", sb)
+	return p
+
+
+static func progress_bar(fill: Color, track := Color(0, 0, 0, 0.35), height := 8, radius := -1) -> ProgressBar:
 	var bar := ProgressBar.new()
 	bar.show_percentage = false
 	bar.min_value = 0.0
@@ -140,30 +156,19 @@ static func progress_bar(fill: Color, track := Color(0, 0, 0, 0.35), height := 1
 	bar.value = 0.0
 	bar.custom_minimum_size.y = height
 
-	var bg := stylebox(track, roundi(height / 2.0))
-	bg.content_margin_left = 0
-	bg.content_margin_right = 0
-	bg.content_margin_top = 0
-	bg.content_margin_bottom = 0
-	var fg := stylebox(fill, roundi(height / 2.0))
-	fg.content_margin_left = 0
-	fg.content_margin_right = 0
-	fg.content_margin_top = 0
-	fg.content_margin_bottom = 0
-
+	var r := radius if radius >= 0 else roundi(height / 2.0)
+	var bg := stylebox(track, r, 0, 0)
+	var fg := stylebox(fill, r, 0, 0)
 	bar.add_theme_stylebox_override("background", bg)
 	bar.add_theme_stylebox_override("fill", fg)
 	return bar
 
 
 # Uma linha de lista: título + subtítulo à esquerda, botão à direita.
-# É o `rowCard` do renderer.js.
 static func row_card(config: Dictionary) -> PanelContainer:
-	var bg := Color(0, 0, 0, 0.06)
-	if config.get("highlight", false):
-		bg = Color(MOSS_GREEN.r, MOSS_GREEN.g, MOSS_GREEN.b, 0.18)
+	var bg: Color = SLOT_BG_ON if config.get("highlight", false) else SLOT_BG
+	var card := panel(bg, 8, 8, 5)
 
-	var card := panel(bg, 8)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	card.add_child(row)
@@ -173,20 +178,20 @@ static func row_card(config: Dictionary) -> PanelContainer:
 	info.add_theme_constant_override("separation", 0)
 	row.add_child(info)
 
-	var title := label(config.get("title", ""), 16)
+	var title := label(config.get("title", ""), 16, CREAM)
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info.add_child(title)
 
 	var sub_text: String = config.get("sub", "")
 	if not sub_text.is_empty():
-		var sub := label(sub_text, 13, Color(INK.r, INK.g, INK.b, 0.7))
+		var sub := label(sub_text, 13, CREAM_DIM)
 		sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		info.add_child(sub)
 
 	var button_label: String = config.get("button", "")
 	if not button_label.is_empty():
 		var variant: String = "soft" if config.get("equipped", false) else "primary"
-		var b := button(button_label, variant, 15)
+		var b := button(button_label, variant, 15, 9)
 		b.disabled = config.get("disabled", false)
 		b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		if config.has("on_click"):

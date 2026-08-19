@@ -25,15 +25,14 @@ GameState="*res://scripts/systems/game_state.gd"
 
 ; Janela widget: pequena, sem moldura, sempre no topo e com fundo transparente
 ; (o "céu" da cena é justamente o buraco por onde a área de trabalho aparece).
-window/size/viewport_width=340
-window/size/viewport_height=450
+window/size/viewport_width=460
+window/size/viewport_height=230
 window/size/resizable=false
 window/size/borderless=true
 window/size/always_on_top=true
 window/size/transparent=true
 window/per_pixel_transparency/allowed=true
-window/stretch/mode="canvas_items"
-window/stretch/aspect="expand"
+window/stretch/mode="disabled"
 
 [physics]
 
