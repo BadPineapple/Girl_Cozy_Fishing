@@ -201,6 +201,82 @@ static func row_card(config: Dictionary) -> PanelContainer:
 	return card
 
 
+# Linha de configuração: rótulo à esquerda, controle à direita.
+static func setting_row(title: String, control: Control, hint := "") -> PanelContainer:
+	var card := panel(SLOT_BG, 8, 8, 4)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	card.add_child(row)
+
+	var info := VBoxContainer.new()
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info.add_theme_constant_override("separation", 0)
+	info.add_child(label(title, 16, CREAM))
+	if not hint.is_empty():
+		var h := label(hint, 13, CREAM_DIM)
+		h.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		info.add_child(h)
+	row.add_child(info)
+
+	control.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(control)
+	return card
+
+
+static func slider(value: int, on_changed: Callable, width := 130) -> HSlider:
+	var s := HSlider.new()
+	s.min_value = 0
+	s.max_value = 100
+	s.step = 5
+	s.value = value
+	s.custom_minimum_size = Vector2(width, 18)
+	s.focus_mode = Control.FOCUS_NONE
+
+	var track := stylebox(Color(0, 0, 0, 0.35), 3, 0, 0)
+	track.content_margin_top = 3
+	track.content_margin_bottom = 3
+	s.add_theme_stylebox_override("slider", track)
+	s.add_theme_stylebox_override("grabber_area", stylebox(CORAL, 3, 0, 0))
+	s.add_theme_stylebox_override("grabber_area_highlight", stylebox(CORAL.lightened(0.15), 3, 0, 0))
+
+	# O "grabber" padrão é uma bolinha de tema; um quadradinho creme combina
+	# mais com o resto e some menos na barra.
+	var grabber := GradientTexture2D.new()
+	grabber.width = 8
+	grabber.height = 16
+	var gradient := Gradient.new()
+	gradient.set_color(0, CREAM)
+	gradient.set_color(1, CREAM)
+	grabber.gradient = gradient
+	s.add_theme_icon_override("grabber", grabber)
+	s.add_theme_icon_override("grabber_highlight", grabber)
+
+	s.value_changed.connect(func(v: float): on_changed.call(int(v)))
+	return s
+
+
+# Botõezinhos lado a lado, um deles marcado — pra escolhas de poucas opções
+# (a escala do quadro), onde um slider seria impreciso demais.
+static func segmented(options: Array, current: Variant, on_pick: Callable) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	for option in options:
+		var value: Variant = option["value"]
+		var b := button(String(option["label"]), "soft" if value == current else "quiet", 14, 7)
+		b.disabled = value == current
+		b.pressed.connect(func(): on_pick.call(value))
+		row.add_child(b)
+	return row
+
+
+static func toggle(value: bool, on_toggled: Callable) -> CheckButton:
+	var c := CheckButton.new()
+	c.button_pressed = value
+	c.focus_mode = Control.FOCUS_NONE
+	c.toggled.connect(func(pressed: bool): on_toggled.call(pressed))
+	return c
+
+
 # "3 conchas + 10 escamas" / "Grátis"
 static func cost_label(cost: Dictionary) -> String:
 	var parts: Array[String] = []

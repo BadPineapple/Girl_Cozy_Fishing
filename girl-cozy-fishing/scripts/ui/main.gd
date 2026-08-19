@@ -101,6 +101,7 @@ func _autosave() -> void:
 
 func _quit_game() -> void:
 	_autosave()
+	Audio.shutdown()
 	get_tree().quit()
 
 
@@ -111,8 +112,18 @@ func _setup_window() -> void:
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_TRANSPARENT, true)
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_RESIZE_DISABLED, true)
 	get_viewport().transparent_bg = true
-	DisplayServer.window_set_size(WINDOW_SIZE)
-	_move_to_corner("bottom-right")
+
+	_apply_scale()
+	Audio.apply_settings(_settings())
+
+	# Volta pro lugar onde foi deixada; sem posição guardada, canto inferior
+	# direito como sempre.
+	var cfg := _settings()
+	if int(cfg["windowX"]) >= 0 and int(cfg["windowY"]) >= 0:
+		DisplayServer.window_set_position(Vector2i(int(cfg["windowX"]), int(cfg["windowY"])))
+		_clamp_window_to_screen()
+	else:
+		_move_to_corner("bottom-right")
 
 
 func _move_to_corner(corner: String) -> void:
@@ -130,6 +141,7 @@ func _move_to_corner(corner: String) -> void:
 		"top-right": pos = Vector2i(right, top)
 		"top-left": pos = Vector2i(left, top)
 	DisplayServer.window_set_position(pos)
+	_remember_window_position()
 
 
 # O widget original tinha um item de bandeja pra deixar o mouse "vazar" pra
@@ -194,7 +206,15 @@ func _build_scene_area() -> Control:
 	tag.position = Vector2(6, SCENE_H - 26)
 	tag.reset_size()
 
-	# botão de esconder (minimiza; volta pela barra de tarefas)
+	# canto superior direito: configurações e esconder, fora da barra de baixo
+	# pra não roubar espaço dela
+	var settings_button := UiKit.button("ajustes", "quiet", 13, 6)
+	settings_button.tooltip_text = "Configurações"
+	settings_button.pressed.connect(_on_settings_pressed)
+	holder.add_child(settings_button)
+	settings_button.position = Vector2(CONTENT_W - 84, 2)
+	settings_button.size = Vector2(54, 22)
+
 	var hide_button := UiKit.button("–", "quiet", 14, 6)
 	hide_button.tooltip_text = "Ocultar (volta pela barra de tarefas)"
 	hide_button.pressed.connect(_on_hide_pressed)
@@ -326,17 +346,24 @@ func _on_hide_pressed() -> void:
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_MINIMIZED)
 
 
+func _on_settings_pressed() -> void:
+	Audio.play("click")
+	_open_panel("settings")
+
+
 func _on_map_tab() -> void:
+	Audio.play("click")
 	_open_panel("map")
 
 
 func _on_pocket_tab() -> void:
+	Audio.play("click")
 	_open_panel("pocket")
 
 
 # ---------------------------------------------------------------- painéis
 func _build_panels() -> void:
-	for id in ["map", "pocket", "shop", "cosmetics", "offline"]:
+	for id in ["map", "pocket", "shop", "cosmetics", "settings", "offline"]:
 		_panels[id] = _make_panel(id)
 
 
@@ -390,8 +417,15 @@ func _open_panel(id: String) -> void:
 	# Os painéis ocupam a janela inteira: abrir um por cima do outro deixava o
 	# de baixo aberto e "preso" atrás quando o de cima fechava.
 	for key in _panels:
-		if key != "offline":
-			_panels[key]["root"].visible = false
+		if key == "offline":
+			continue
+		# Reset explícito: um painel escondido no meio da animação ficava com a
+		# escala/alfa da transição guardados e reabria torto.
+		var other: Control = _panels[key]["root"]
+		other.visible = false
+		other.scale = Vector2.ONE
+		other.modulate.a = 1.0
+		other.position.y = 0.0
 	_panel_layer.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	match id:
@@ -399,20 +433,57 @@ func _open_panel(id: String) -> void:
 		"pocket": _render_pocket_panel()
 		"shop": _render_shop_panel()
 		"cosmetics": _render_cosmetics_panel()
-	_panels[id]["root"].visible = true
+		"settings": _render_settings_panel()
+	_show_panel(_panels[id]["root"])
+
+
+# Abertura: o painel sobe uns pixels e cresce de 96% até o tamanho cheio,
+# aparecendo junto. É rápido de propósito (0,14s) — é um widget de canto, e
+# animação longa aqui vira estorvo, não charme.
+func _show_panel(panel: Control) -> void:
+	panel.visible = true
+	panel.pivot_offset = Vector2(panel.size.x * 0.5, panel.size.y)
+	panel.scale = Vector2(0.96, 0.96)
+	panel.position.y = 10.0
+	panel.modulate.a = 0.0
+
+	var tween := create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(panel, "scale", Vector2.ONE, 0.14)
+	tween.tween_property(panel, "position:y", 0.0, 0.14)
+	tween.tween_property(panel, "modulate:a", 1.0, 0.12)
+
+
+func _hide_panel(panel: Control, on_done := Callable()) -> void:
+	if not panel.visible:
+		if on_done.is_valid():
+			on_done.call()
+		return
+	var tween := create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tween.tween_property(panel, "scale", Vector2(0.97, 0.97), 0.10)
+	tween.tween_property(panel, "modulate:a", 0.0, 0.10)
+	tween.chain().tween_callback(func():
+		panel.visible = false
+		panel.scale = Vector2.ONE
+		panel.modulate.a = 1.0
+		if on_done.is_valid():
+			on_done.call()
+	)
 
 
 func _close_panel(id: String) -> void:
 	if not _panels.has(id):
 		return
-	_panels[id]["root"].visible = false
 	_autosave()
 
 	# Saiu da loja/ateliê? Volta pro mapa, que foi de onde você entrou.
 	if id == "shop" or id == "cosmetics":
-		_open_panel("map")
+		_hide_panel(_panels[id]["root"], _open_panel.bind("map"))
 		return
 
+	_hide_panel(_panels[id]["root"], _release_panel_layer)
+
+
+func _release_panel_layer() -> void:
 	for key in _panels:
 		if _panels[key]["root"].visible:
 			return
@@ -639,6 +710,7 @@ func _render_shop_panel() -> void:
 
 
 func _on_sell_one(fish_id: String) -> void:
+	Audio.play("coin")
 	ShopSystem.sell_fish(state, fish_id, 1)
 	_render_shop_panel()
 	_refresh_status()
@@ -647,6 +719,7 @@ func _on_sell_one(fish_id: String) -> void:
 func _on_sell_all() -> void:
 	var total := ShopSystem.sell_all(state)
 	if total > 0:
+		Audio.play("coin")
 		_toast("+%s conchas" % UiKit.format_number(total))
 	_render_shop_panel()
 	_refresh_status()
@@ -718,6 +791,95 @@ func _on_cosmetic_pressed(cosmetic_id: String) -> void:
 	_autosave()
 
 
+# ---- configurações ----
+func _settings() -> Dictionary:
+	return state["settings"]
+
+
+func _render_settings_panel() -> void:
+	var panel: Dictionary = _panels["settings"]
+	panel["title"].text = "Configurações"
+	var body: VBoxContainer = panel["body"]
+	_clear(body)
+	var cfg := _settings()
+
+	body.add_child(_section_title("Som"))
+	body.add_child(UiKit.setting_row(
+		"Efeitos", UiKit.slider(int(cfg["sfx"]), _on_sfx_changed)))
+	body.add_child(UiKit.setting_row(
+		"Música", UiKit.slider(int(cfg["music"]), _on_music_changed), "Ambiência de mar"))
+
+	body.add_child(_section_title("Janela"))
+	var options: Array = []
+	for step in StateFormat.SCALE_STEPS:
+		options.append({"label": "%d%%" % step, "value": step})
+	body.add_child(UiKit.setting_row(
+		"Escala do quadro", UiKit.segmented(options, int(cfg["scale"]), _on_scale_picked)))
+	body.add_child(UiKit.setting_row(
+		"Ancorar no lugar", UiKit.toggle(bool(cfg["anchored"]), _on_anchor_toggled),
+		"Trava a janela: ela para de ser arrastada"))
+
+
+func _on_sfx_changed(value: int) -> void:
+	_settings()["sfx"] = value
+	Audio.set_bus_percent(Audio.SFX_BUS, value)
+	Audio.play("click")  # o próprio ajuste serve de amostra
+	_autosave()
+
+
+func _on_music_changed(value: int) -> void:
+	_settings()["music"] = value
+	Audio.set_bus_percent(Audio.MUSIC_BUS, value)
+	_autosave()
+
+
+func _on_scale_picked(value: int) -> void:
+	_settings()["scale"] = value
+	_apply_scale()
+	_render_settings_panel()
+	_autosave()
+
+
+func _on_anchor_toggled(value: bool) -> void:
+	_settings()["anchored"] = value
+	if value:
+		_remember_window_position()
+	_render_settings_panel()
+	_autosave()
+
+
+# A janela é redimensionada pelo fator e o Godot escala a interface junto
+# (stretch canvas_items com aspecto travado), então nada precisa ser
+# recalculado à mão.
+func _apply_scale() -> void:
+	var factor := float(int(_settings()["scale"])) / 100.0
+	var target := Vector2i(roundi(WINDOW_SIZE.x * factor), roundi(WINDOW_SIZE.y * factor))
+	if DisplayServer.window_get_size() == target:
+		return
+	DisplayServer.window_set_size(target)
+	_clamp_window_to_screen()
+
+
+func _remember_window_position() -> void:
+	var pos := DisplayServer.window_get_position()
+	_settings()["windowX"] = pos.x
+	_settings()["windowY"] = pos.y
+
+
+# Guarda contra a janela abrir fora da área visível (monitor desconectado,
+# resolução trocada): se a posição salva não couber, volta pro canto.
+func _clamp_window_to_screen() -> void:
+	var usable := DisplayServer.screen_get_usable_rect(DisplayServer.window_get_current_screen())
+	var win_size := DisplayServer.window_get_size()
+	var pos := DisplayServer.window_get_position()
+	var clamped := Vector2i(
+		clampi(pos.x, usable.position.x, maxi(usable.position.x, usable.position.x + usable.size.x - win_size.x)),
+		clampi(pos.y, usable.position.y, maxi(usable.position.y, usable.position.y + usable.size.y - win_size.y))
+	)
+	if clamped != pos:
+		DisplayServer.window_set_position(clamped)
+
+
 # ---- resumo offline ----
 func _show_offline_panel(summary: Dictionary) -> void:
 	var panel: Dictionary = _panels["offline"]
@@ -783,6 +945,7 @@ func _process(delta: float) -> void:
 
 func _on_main_action() -> void:
 	if _session.phase == "idle":
+		Audio.play("cast")
 		_session.start_cast()
 	elif _session.phase == "reeling":
 		_session.pull()
@@ -802,6 +965,8 @@ func _on_phase_changed(snapshot: Dictionary) -> void:
 			_action_label.text = "Esperando fisgada…"
 			_action_button.disabled = true
 		"reeling":
+			if _action_label.text != "Puxar!":
+				Audio.play("bite")  # só na virada, não a cada frame do medidor
 			_action_label.text = "Puxar!"
 			# o próprio botão vira o medidor
 			_action_fill.value = float(snapshot["reel_pct"])
@@ -814,13 +979,16 @@ func _on_fish_caught(caught: Dictionary) -> void:
 	var tag := ""
 	if FishData.is_rare(fish):
 		tag = " (%s!)" % FishData.RARITY_LABEL[fish["rarity"]]
+	Audio.play("catch")
 	_toast("Pescou: %s%s" % [fish["name"], tag])
 	if int(caught["ranks_gained"]) > 0:
+		Audio.play("rank")
 		_toast("Subiu para o rank %d!" % int(state["player"]["rank"]))
 	_refresh_status()
 
 
 func _on_fish_escaped(fish: Dictionary) -> void:
+	Audio.play("escape")
 	if fish.is_empty():
 		_toast("Escapou...")
 	else:
@@ -881,6 +1049,12 @@ func _on_scene_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event
 		if mb.button_index == MOUSE_BUTTON_LEFT:
+			# Ancorada, a janela não se mexe: é pra isso que a opção existe.
+			if bool(_settings()["anchored"]):
+				return
+			if _dragging and not mb.pressed:
+				_remember_window_position()
+				_autosave()
 			_dragging = mb.pressed
 			if mb.pressed:
 				_drag_offset = DisplayServer.mouse_get_position() - DisplayServer.window_get_position()

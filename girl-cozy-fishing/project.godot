@@ -20,6 +20,7 @@ config/icon="res://icon.svg"
 
 SaveSystem="*res://scripts/systems/save_system.gd"
 GameState="*res://scripts/systems/game_state.gd"
+Audio="*res://scripts/systems/audio.gd"
 
 [display]
 
@@ -32,7 +33,11 @@ window/size/borderless=true
 window/size/always_on_top=true
 window/size/transparent=true
 window/per_pixel_transparency/allowed=true
-window/stretch/mode="disabled"
+; A escala do quadro funciona redimensionando a janela: com canvas_items +
+; aspecto travado, o Godot escala a interface toda junto e nada precisa ser
+; recalculado à mão.
+window/stretch/mode="canvas_items"
+window/stretch/aspect="keep"
 
 [physics]
 

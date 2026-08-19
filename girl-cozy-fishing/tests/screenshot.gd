@@ -21,7 +21,8 @@ func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--panel="):
 			main.call("_open_panel", arg.trim_prefix("--panel="))
-			await get_tree().process_frame
+			# o painel entra com uma animação curta; espera ela terminar
+			await get_tree().create_timer(0.4).timeout
 	await RenderingServer.frame_post_draw
 
 	var image := get_viewport().get_texture().get_image()

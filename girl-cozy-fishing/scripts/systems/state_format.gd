@@ -18,6 +18,10 @@ extends RefCounted
 const SAVE_VERSION := 1
 const MAX_INVENTORY_QTY := 1_000_000_000
 
+# Escalas oferecidas nas configurações (em %). A janela é redimensionada por
+# esse fator e o Godot escala a interface junto.
+const SCALE_STEPS := [75, 100, 125, 150]
+
 
 static func now_ms() -> float:
 	return Time.get_unix_time_from_system() * 1000.0
@@ -67,6 +71,15 @@ static func default_state() -> Dictionary:
 			"equipped": CosmeticsData.DEFAULT_EQUIPPED.duplicate(),
 		},
 
+		"settings": {
+			"sfx": 70,        # volume dos efeitos, 0..100
+			"music": 40,      # volume da ambiência, 0..100
+			"scale": 100,     # escala do quadro em %
+			"anchored": false,# janela presa no lugar
+			"windowX": -1,    # -1 = ainda sem posição guardada
+			"windowY": -1,
+		},
+
 		"activeEvent": {},  # {} = nenhum evento ativo
 		"lastEventRollAt": now,
 
@@ -108,6 +121,21 @@ static func _as_int(value: Variant, fallback: int, minimum: int = 0, maximum: in
 	if not is_finite(n):
 		return fallback
 	return clampi(int(floor(n)), minimum, maximum)
+
+
+static func _as_bool(value: Variant, fallback := false) -> bool:
+	# bool("texto") não é conversão: é erro em tempo de execução. Um save com
+	# string onde devia ter booleano derrubava a leitura inteira.
+	match typeof(value):
+		TYPE_BOOL:
+			return value
+		TYPE_INT, TYPE_FLOAT:
+			return float(value) != 0.0
+		TYPE_STRING:
+			var text := String(value).strip_edges().to_lower()
+			return text == "true" or text == "1" or text == "sim"
+		_:
+			return fallback
 
 
 static func _as_timestamp(value: Variant, fallback: float) -> float:
@@ -154,8 +182,8 @@ static func sanitize_state(raw: Variant) -> Dictionary:
 	}
 
 	var af: Dictionary = s.get("autoFish", {}) if typeof(s.get("autoFish")) == TYPE_DICTIONARY else {}
-	var unlocked := bool(af.get("unlocked", false))
-	s["autoFish"] = {"unlocked": unlocked, "enabled": unlocked and bool(af.get("enabled", false))}
+	var unlocked := _as_bool(af.get("unlocked"), false)
+	s["autoFish"] = {"unlocked": unlocked, "enabled": unlocked and _as_bool(af.get("enabled"), false)}
 
 	var unlocked_locs: Array = []
 	if typeof(s.get("unlockedLocations")) == TYPE_ARRAY:
@@ -198,6 +226,22 @@ static func sanitize_state(raw: Variant) -> Dictionary:
 	for fish_id in inv_order:
 		inventory.append({"fishId": fish_id, "qty": inv_qty[fish_id]})
 	s["inventory"] = inventory
+
+	# Configurações: volume fora de 0..100 ou escala fora da lista quebram a
+	# janela/áudio, então tudo entra clampado.
+	var set_saved: Dictionary = s.get("settings", {}) if typeof(s.get("settings")) == TYPE_DICTIONARY else {}
+	var def_settings: Dictionary = def["settings"]
+	var scale := _as_int(set_saved.get("scale"), int(def_settings["scale"]), 50, 200)
+	if not SCALE_STEPS.has(scale):
+		scale = int(def_settings["scale"])
+	s["settings"] = {
+		"sfx": _as_int(set_saved.get("sfx"), int(def_settings["sfx"]), 0, 100),
+		"music": _as_int(set_saved.get("music"), int(def_settings["music"]), 0, 100),
+		"scale": scale,
+		"anchored": _as_bool(set_saved.get("anchored"), false),
+		"windowX": _as_int(set_saved.get("windowX"), -1, -1, 32000),
+		"windowY": _as_int(set_saved.get("windowY"), -1, -1, 32000),
+	}
 
 	var cos_saved: Dictionary = s.get("cosmetics", {}) if typeof(s.get("cosmetics")) == TYPE_DICTIONARY else {}
 	var owned: Array = CosmeticsData.STARTER_COSMETICS.duplicate()

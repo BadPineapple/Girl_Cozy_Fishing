@@ -25,8 +25,26 @@ Interação:
   cima, transparente, também funciona).
 - **Botão direito** na cena abre o menu: clique-atravessa, mover para um canto
   da tela e sair.
-- **`–`** minimiza. Diferente do Electron, aqui a janela volta pela barra de
-  tarefas — o Godot não expõe ícone de bandeja (veja *Diferenças* abaixo).
+- **`ajustes`** abre as configurações; **`–`** minimiza. Diferente do Electron,
+  aqui a janela volta pela barra de tarefas — o Godot não expõe ícone de
+  bandeja (veja *Diferenças* abaixo).
+
+## Configurações
+
+| | |
+|---|---|
+| Volume de efeitos | lançar, fisgar, vender |
+| Volume de música | a ambiência de mar |
+| Escala do quadro | 75%%, 100%%, 125%% ou 150%% |
+| Ancorar no lugar | trava a janela: ela para de ser arrastada |
+
+Tudo fica guardado no mesmo save, junto da posição da janela — reabrir devolve
+o widget exatamente onde ele estava.
+
+**O som é sintetizado em código**, igual à arte: não há arquivo de áudio no
+projeto. Os efeitos são ondas curtas geradas na inicialização e a "música" é
+uma ambiência de mar (ruído filtrado com uma maré lenta modulando por cima).
+Cada slider mexe no seu barramento (`Efeitos` e `Musica`).
 
 ## Capturando a tela
 
@@ -68,6 +86,7 @@ scripts/
   systems/              lógica pura (funções estáticas que recebem/alteram o estado)
     state_format.gd      formato do save: defaults e a validação da leitura
     game_state.gd        autoload: a partida em andamento
+    audio.gd              autoload: efeitos e ambiência sintetizados em código
     save_system.gd        autoload: grava/lê user://mare-save.json com troca segura
     effects.gd             leitura central dos efeitos do evento ativo
     economy.gd             moeda, xp, subida de rank

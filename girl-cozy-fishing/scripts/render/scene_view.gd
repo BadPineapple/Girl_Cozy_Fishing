@@ -8,9 +8,9 @@
 #   ═══════╧════ poste ═══════════════════════════════════
 #   ~~~~~~~~~~~~~~~~ água ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
-# A personagem ocupa quase toda a altura (é a estrela), a água é só uma faixa
-# baixa, e a linha de pesca sempre aparece — mesmo parada a boia fica boiando,
-# senão a metade direita ficava um vazio sem função.
+# A personagem ocupa quase toda a altura (é a estrela) e a água é só uma faixa
+# baixa. A linha de pesca só existe durante a pescaria: fora dela a vara fica
+# recolhida na mão.
 
 extends Control
 
@@ -95,20 +95,38 @@ func _draw_water(k: float, night: float, water: Color) -> void:
 			true
 		)
 
-	# linha d'água clara: é ela que dá a leitura de "superfície"
-	draw_rect(Rect2(Vector2(0, WATER_Y * k), Vector2(size.x, 1.5 * k)), surface.lightened(0.4), true)
+	# Linha d'água: sobe e desce de leve, em degraus de 1px. É o que faz a
+	# superfície "respirar" em vez de ser um corte reto parado.
+	var swell := roundf(sin(_time * 0.9) * 1.5)
+	draw_rect(Rect2(Vector2(0, (WATER_Y + swell) * k), Vector2(size.x, 1.5 * k)), surface.lightened(0.4), true)
 
-	# reflexos: poucos e irregulares. Antes eram tracinhos regulares demais e
-	# a água parecia linha pontilhada de texto.
+	# Ondinhas de crista: correm de verdade pra esquerda (antes iam e voltavam
+	# com um seno, o que lia como tremor, não como correnteza).
 	var foam := Color(1, 1, 1, 0.10)
-	for row in 2:
-		var y := WATER_Y + 8.0 + float(row) * 13.0
-		var drift := sin(_time * (0.35 + 0.15 * float(row)) + float(row) * 2.0) * 18.0
-		var x := fmod(drift, 118.0) - 118.0
+	for row in 3:
+		var y := WATER_Y + 7.0 + float(row) * 12.0
+		var period := 96.0 + float(row) * 27.0
+		var speed := 5.0 + float(row) * 2.5
+		var x := -period + fmod(-_time * speed, period)
+		var bobbing := roundf(sin(_time * 1.1 + float(row) * 1.7) * 1.0)
 		while x < BASE_W:
-			draw_rect(Rect2(Vector2(x, y) * k, Vector2(16.0, 1.5) * k), foam, true)
-			draw_rect(Rect2(Vector2(x + 26.0, y) * k, Vector2(6.0, 1.5) * k), foam, true)
-			x += 118.0
+			draw_rect(Rect2(Vector2(x, y + bobbing) * k, Vector2(15.0, 1.5) * k), foam, true)
+			draw_rect(Rect2(Vector2(x + 24.0, y + bobbing) * k, Vector2(5.0, 1.5) * k), foam, true)
+			x += period
+
+	# Brilho pontual que aparece e some, como sol batendo na crista.
+	for i in 3:
+		var phase := _time * 0.55 + float(i) * 2.1
+		var twinkle := sin(phase)
+		if twinkle <= 0.55:
+			continue
+		var gx := fmod(78.0 + float(i) * 151.0 + floorf(phase / TAU) * 43.0, BASE_W - 20.0) + 10.0
+		var gy := WATER_Y + 4.0 + float(i % 2) * 9.0
+		draw_rect(
+			Rect2(Vector2(gx, gy) * k, Vector2(3.0, 1.5) * k),
+			Color(1, 1, 1, (twinkle - 0.55) * 0.55),
+			true
+		)
 
 
 func _draw_raft(k: float, night: float) -> void:
@@ -173,16 +191,19 @@ func _rod_tip() -> Vector2:
 	return Vector2(CHAR_X, char_y) + PixelSprites.ROD_TIP_UNIT * CHAR_SCALE
 
 
-# A linha fica sempre na água — parada, a boia só balança de leve. Antes ela
-# sumia fora da pescaria e a metade direita da cena ficava vazia.
+# Fora da pescaria a linha é recolhida: a vara fica na mão, mas nada de anzol
+# largado no lago. Serve também de leitura de estado — linha na água quer dizer
+# que tem pescaria acontecendo.
 func _draw_line_and_bobber(k: float) -> void:
+	if fishing_phase == "idle":
+		return
+
 	var tip := _rod_tip()
-	var wobble := 1.0
+	var wobble := 1.4
 	match fishing_phase:
 		"waiting": wobble = 2.2
 		"reeling": wobble = 3.2
-	var speed := 5.0 if fishing_phase != "idle" else 1.6
-	var bobber := Vector2(tip.x + 120.0, WATER_Y + 4.0 + sin(_time * speed) * wobble)
+	var bobber := Vector2(tip.x + 120.0, WATER_Y + 4.0 + sin(_time * 5.0) * wobble)
 
 	# a linha faz uma barriga: reta demais fica sem peso
 	var mid := (tip + bobber) * 0.5 + Vector2(0, 10.0)

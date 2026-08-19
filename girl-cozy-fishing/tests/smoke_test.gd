@@ -20,6 +20,7 @@ func _ready() -> void:
 	_test_offline_earnings()
 	_test_cannot_buy_without_money()
 	_test_venues()
+	_test_settings()
 	_test_save_round_trip()
 
 	print("")
@@ -172,8 +173,33 @@ func _test_venues() -> void:
 	_check("não cobra duas vezes", MapSystem.unlock_venue(state, "atelie_enseada").get("reason", "") == "owned")
 
 
+func _test_settings() -> void:
+	print("\n[8] configurações")
+	var fresh := _fresh_state()
+	_check("vem com padrões", fresh["settings"]["scale"] == 100 and int(fresh["settings"]["sfx"]) > 0)
+
+	# Volume fora da faixa e escala fora da lista quebrariam áudio/janela.
+	var junk := StateFormat.merge_with_defaults({"settings": {
+		"sfx": 900, "music": -40, "scale": 37, "anchored": "talvez", "windowX": -99,
+	}})
+	var cfg: Dictionary = junk["settings"]
+	_check("volume acima de 100 é aparado", int(cfg["sfx"]) == 100, "(%d)" % int(cfg["sfx"]))
+	_check("volume negativo vira 0", int(cfg["music"]) == 0, "(%d)" % int(cfg["music"]))
+	_check("escala fora da lista volta pro padrão", int(cfg["scale"]) == 100, "(%d)" % int(cfg["scale"]))
+	_check("posição inválida vira -1", int(cfg["windowX"]) == -1)
+	_check("escalas oferecidas são conhecidas", StateFormat.SCALE_STEPS.has(int(cfg["scale"])))
+
+	# Os barramentos de áudio existem e aceitam volume (é o que os sliders mexem).
+	_check("barramento de efeitos existe", AudioServer.get_bus_index(Audio.SFX_BUS) != -1)
+	_check("barramento de música existe", AudioServer.get_bus_index(Audio.MUSIC_BUS) != -1)
+	Audio.set_bus_percent(Audio.SFX_BUS, 0)
+	_check("volume 0 muta o barramento", AudioServer.is_bus_mute(AudioServer.get_bus_index(Audio.SFX_BUS)))
+	Audio.set_bus_percent(Audio.SFX_BUS, 70)
+	_check("volume acima de 0 desmuta", not AudioServer.is_bus_mute(AudioServer.get_bus_index(Audio.SFX_BUS)))
+
+
 func _test_save_round_trip() -> void:
-	print("\n[8] salvar e carregar de verdade")
+	print("\n[9] salvar e carregar de verdade")
 
 	# Este teste escreve no save de verdade, então o progresso existente é
 	# guardado antes e devolvido no fim — rodar o teste não pode custar a
