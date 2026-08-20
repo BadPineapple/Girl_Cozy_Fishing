@@ -1,7 +1,15 @@
 # fishing_session.gd — a máquina de estados do minigame de pesca.
-# Fases: idle -> casting -> waiting (esperando fisgar) -> reeling (cabo de
-# guerra) -> idle. Roda em memória: só o RESULTADO de uma pescaria (peixe, xp,
-# moeda) é que mexe no estado persistido.
+#
+#   idle ──lançar──> casting ──> waiting ──fisgou──> reeling ──pegou──> idle
+#     ^                 │           │                   │
+#     └── recolhendo <──┴─cancelar──┘                   └──escapou──┘
+#
+# `recolhendo` é uma fase curta e sem decisão: a linha volta pra vara. Serve
+# tanto pro cancelamento quanto pra perda do peixe — nos dois casos a linha
+# sendo recolhida é o que fecha a ação, em vez do anzol sumir do nada.
+#
+# Roda em memória: só o RESULTADO de uma pescaria (peixe, xp, moeda) é que mexe
+# no estado persistido.
 
 class_name FishingSession
 extends RefCounted
@@ -15,6 +23,9 @@ const BASE_BITE_MIN_MS := 1200.0
 const BASE_BITE_MAX_MS := 3200.0
 const REEL_START_PCT := 38.0
 const REEL_CATCH_PCT := 100.0
+const RETRIEVE_MS := 420.0
+
+signal line_retrieved  # a linha terminou de voltar (pra UI/som)
 
 var phase: String = "idle"
 
@@ -48,6 +59,33 @@ func start_cast() -> void:
 	phase_changed.emit(snapshot())
 
 
+# Desistir antes da fisgada. Vale enquanto a isca está indo ou esperando — em
+# `reeling` já tem peixe na linha e sair fora é o cabo de guerra, não um botão.
+func can_cancel() -> bool:
+	return phase == "casting" or phase == "waiting"
+
+
+func cancel() -> void:
+	if not can_cancel():
+		return
+	_fish = {}
+	_begin_retrieve()
+
+
+# Quanto da recolhida já passou: 0 = acabou de começar, 1 = linha na vara.
+func retrieve_progress() -> float:
+	if phase != "recolhendo":
+		return 0.0
+	return clampf(1.0 - _timer / RETRIEVE_MS, 0.0, 1.0)
+
+
+func _begin_retrieve() -> void:
+	phase = "recolhendo"
+	_timer = RETRIEVE_MS
+	_reel_pct = 0.0
+	phase_changed.emit(snapshot())
+
+
 func pull() -> void:
 	if phase != "reeling":
 		return
@@ -73,6 +111,13 @@ func tick(delta_ms: float) -> void:
 			_timer -= delta_ms
 			if _timer <= 0.0:
 				_begin_reeling()
+		"recolhendo":
+			_timer -= delta_ms
+			phase_changed.emit(snapshot())
+			if _timer <= 0.0:
+				phase = "idle"
+				line_retrieved.emit()
+				phase_changed.emit(snapshot())
 		"reeling":
 			_reel_pct -= (_reel_decay_per_sec * delta_ms) / 1000.0
 			if _reel_pct <= 0.0:
@@ -127,8 +172,7 @@ func _resolve_catch() -> void:
 func _resolve_escape() -> void:
 	var lost := _fish
 	_state["stats"]["totalEscaped"] = int(_state["stats"]["totalEscaped"]) + 1
-	phase = "idle"
 	_fish = {}
-	_reel_pct = 0.0
 	fish_escaped.emit(lost)
-	phase_changed.emit(snapshot())
+	# Perdeu o peixe: a linha é recolhida em vez de sumir de uma vez.
+	_begin_retrieve()

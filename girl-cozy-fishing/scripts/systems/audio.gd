@@ -114,6 +114,7 @@ func _build_sounds() -> void:
 	_sfx["coin"] = _make_wav(_blips([880.0, 1174.0], 0.05))
 	_sfx["escape"] = _make_wav(_tone_sweep(400.0, 150.0, 0.22, 0.35))
 	_sfx["click"] = _make_wav(_tone_sweep(520.0, 480.0, 0.04, 0.25))
+	_sfx["reel"] = _make_wav(_tone_sweep(150.0, 260.0, 0.20, 0.28))   # molinete recolhendo
 
 
 func _make_wav(samples: PackedFloat32Array, loop := false) -> AudioStreamWAV:

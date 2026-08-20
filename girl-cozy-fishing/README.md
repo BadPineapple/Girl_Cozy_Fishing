@@ -25,6 +25,12 @@ Interação:
   cima, transparente, também funciona).
 - **Botão direito** na cena abre o menu: clique-atravessa, mover para um canto
   da tela e sair.
+- **Esc** fecha o painel aberto. Dentro de uma loja ou ateliê ele volta pro
+  mapa (mesmo caminho do botão "fechar"), então dá pra sair de tudo só com Esc
+  repetido.
+- O botão de ação **cancela o lançamento** enquanto a isca está indo ou
+  esperando: a linha é recolhida e você volta pro início. Quando um peixe
+  escapa, a linha é recolhida do mesmo jeito, em vez de o anzol sumir.
 - **`ajustes`** abre as configurações; **`–`** minimiza. Diferente do Electron,
   aqui a janela volta pela barra de tarefas — o Godot não expõe ícone de
   bandeja (veja *Diferenças* abaixo).
@@ -53,6 +59,9 @@ Pra conferir layout e cor sem ficar abrindo o jogo na mão:
 ```bash
 godot --path girl-cozy-fishing tests/screenshot.tscn
 godot --path girl-cozy-fishing tests/screenshot.tscn -- --panel=map
+godot --path girl-cozy-fishing tests/screenshot.tscn -- --cast      # linha na água
+godot --path girl-cozy-fishing tests/screenshot.tscn -- --retrieve  # recolhendo
+godot --path girl-cozy-fishing tests/screenshot.tscn -- --esc       # confere o atalho
 ```
 
 Salva um PNG (com o fundo transparente, como o widget é de verdade) em
@@ -91,6 +100,7 @@ scripts/
     effects.gd             leitura central dos efeitos do evento ativo
     economy.gd             moeda, xp, subida de rank
     fishing_session.gd     máquina de estados: lançar → esperar → puxar → pegar/fugir
+                           (+ cancelar e recolher a linha)
     shop_system.gd         vender peixe, comprar vara/isca/assistente
     cosmetics_system.gd    comprar/equipar cosméticos
     map_system.gd          viajar entre locais e abrir estabelecimentos

@@ -911,7 +911,6 @@ func _show_offline_panel(summary: Dictionary) -> void:
 
 
 func _close_offline_panel() -> void:
-	_panels["offline"]["root"].visible = false
 	_close_panel("offline")
 
 
@@ -941,6 +940,7 @@ func _process(delta: float) -> void:
 
 	if _scene_view != null:
 		_scene_view.fishing_phase = _session.phase
+		_scene_view.retrieve_progress = _session.retrieve_progress()
 
 
 func _on_main_action() -> void:
@@ -949,6 +949,11 @@ func _on_main_action() -> void:
 		_session.start_cast()
 	elif _session.phase == "reeling":
 		_session.pull()
+	elif _session.can_cancel():
+		# Desistir do lançamento: antes o botão ficava morto durante a espera e
+		# não havia como voltar atrás sem esperar a fisgada.
+		Audio.play("reel")
+		_session.cancel()
 
 
 func _on_phase_changed(snapshot: Dictionary) -> void:
@@ -959,10 +964,11 @@ func _on_phase_changed(snapshot: Dictionary) -> void:
 		"idle":
 			_action_label.text = "Lançar a isca"
 		"casting":
-			_action_label.text = "Lançando…"
-			_action_button.disabled = true
+			_action_label.text = "Lançando… (recolher)"
 		"waiting":
-			_action_label.text = "Esperando fisgada…"
+			_action_label.text = "Esperando… (recolher)"
+		"recolhendo":
+			_action_label.text = "Recolhendo…"
 			_action_button.disabled = true
 		"reeling":
 			if _action_label.text != "Puxar!":
@@ -1042,6 +1048,31 @@ func _toast(text: String) -> void:
 	tween.tween_interval(2.0)
 	tween.tween_property(card, "modulate:a", 0.0, 0.5)
 	tween.tween_callback(card.queue_free)
+
+
+# ---------------------------------------------------------------- teclado
+# Esc fecha o que estiver aberto, de cima pra baixo. Numa loja/ateliê ele volta
+# pro mapa (mesmo caminho do botão "fechar"), então dá pra sair de tudo só com
+# Esc repetido.
+func _unhandled_key_input(event: InputEvent) -> void:
+	if not event.is_action_pressed("ui_cancel"):
+		return
+	var open_id := _topmost_open_panel()
+	if open_id.is_empty():
+		return
+	get_viewport().set_input_as_handled()
+	Audio.play("click")
+	_close_panel(open_id)
+
+
+func _topmost_open_panel() -> String:
+	# O resumo offline fica por cima de todos: é o último filho da camada.
+	if _panels["offline"]["root"].visible:
+		return "offline"
+	for id in ["shop", "cosmetics", "settings", "pocket", "map"]:
+		if _panels[id]["root"].visible:
+			return id
+	return ""
 
 
 # ---------------------------------------------------------------- arrastar e menu

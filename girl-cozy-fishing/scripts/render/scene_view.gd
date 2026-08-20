@@ -23,6 +23,7 @@ const RAFT_X := -4.0
 const RAFT_W := 214.0
 
 var fishing_phase: String = "idle"
+var retrieve_progress := 0.0  # 0..1 durante a fase "recolhendo"
 
 var _time := 0.0
 
@@ -205,8 +206,19 @@ func _draw_line_and_bobber(k: float) -> void:
 		"reeling": wobble = 3.2
 	var bobber := Vector2(tip.x + 120.0, WATER_Y + 4.0 + sin(_time * 5.0) * wobble)
 
-	# a linha faz uma barriga: reta demais fica sem peso
-	var mid := (tip + bobber) * 0.5 + Vector2(0, 10.0)
+	# Recolhendo: a boia desliza de volta pra ponta da vara, saindo da água no
+	# caminho. É o fecho de quando se cancela o lançamento ou o peixe escapa —
+	# antes o anzol simplesmente sumia.
+	var retrieving := fishing_phase == "recolhendo"
+	var t_retrieve := 0.0
+	if retrieving:
+		t_retrieve = ease(clampf(retrieve_progress, 0.0, 1.0), 0.45)
+		bobber = bobber.lerp(tip, t_retrieve)
+
+	# a linha faz uma barriga: reta demais fica sem peso. Ela se estica junto
+	# com a recolhida, então a barriga vai sumindo.
+	var sag := 10.0 * (1.0 - t_retrieve)
+	var mid := (tip + bobber) * 0.5 + Vector2(0, sag)
 	var points := PackedVector2Array()
 	for i in 13:
 		var t := float(i) / 12.0
@@ -214,9 +226,10 @@ func _draw_line_and_bobber(k: float) -> void:
 		points.append(p * k)
 	draw_polyline(points, Color(0.98, 0.94, 0.85, 0.6), maxf(1.0, 1.1 * k))
 
-	# ondinhas em volta da boia
-	var ring := Color(1, 1, 1, 0.18 if fishing_phase == "waiting" else 0.10)
-	draw_rect(Rect2(Vector2(bobber.x - 11.0, WATER_Y + 6.0) * k, Vector2(22.0, 1.5) * k), ring, true)
+	# ondinhas em volta da boia — só enquanto ela está mesmo n'água
+	if bobber.y > WATER_Y:
+		var ring := Color(1, 1, 1, (0.18 if fishing_phase == "waiting" else 0.10) * (1.0 - t_retrieve))
+		draw_rect(Rect2(Vector2(bobber.x - 11.0, WATER_Y + 6.0) * k, Vector2(22.0, 1.5) * k), ring, true)
 
 	PixelSprites.draw_bobber(self, bobber * k, 4.0 * k)
 
