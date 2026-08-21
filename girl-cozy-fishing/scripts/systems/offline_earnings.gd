@@ -17,7 +17,7 @@ static func compute(state: Dictionary, rare_bonus: float = 0.0) -> Dictionary:
 
 	var now := StateFormat.now_ms()
 	var elapsed := clampf(now - float(state["lastSeen"]), 0.0, MAX_OFFLINE_MS)
-	var interval := AutoFish.INTERVAL_MS * INTERVAL_MULT
+	var interval := AutoFish.interval_ms(state) * INTERVAL_MULT
 	var attempts := int(floor(elapsed / interval))
 	if attempts <= 0:
 		return {}

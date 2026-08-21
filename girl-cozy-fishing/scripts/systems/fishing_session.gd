@@ -143,7 +143,7 @@ func _begin_reeling() -> void:
 	var rod := EquipmentData.rod_by_tier(int(_state["equipment"]["rodTier"]))
 	_pull_power = 7.0 + (float(rod.get("power", 0)) * 3.0 if not rod.is_empty() else 0.0)
 	_reel_pct = REEL_START_PCT
-	_reel_decay_per_sec = 6.0 + float(_fish["strength"]) * 3.2
+	_reel_decay_per_sec = (6.0 + float(_fish["strength"]) * 3.2) * Workshop.reel_decay_mult(_state)
 	phase = "reeling"
 	phase_changed.emit(snapshot())
 

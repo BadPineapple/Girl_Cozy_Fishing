@@ -11,6 +11,11 @@ const XP_MULT := 0.55
 const MAX_CATCHUP_ATTEMPTS := 800  # ~10h de recuperação; teto só pra não travar o frame
 
 
+# O Rádio de Bordo encurta o intervalo entre as tentativas.
+static func interval_ms(state: Dictionary) -> float:
+	return INTERVAL_MS * Workshop.auto_interval_mult(state)
+
+
 static func success_chance(state: Dictionary) -> float:
 	var rod := EquipmentData.rod_by_tier(int(state["equipment"]["rodTier"]))
 	var power := float(rod.get("power", 1)) if not rod.is_empty() else 1.0
@@ -56,10 +61,11 @@ static func tick(state: Dictionary, delta_ms: float, rare_bonus: float, accumula
 
 	accumulator[0] = float(accumulator[0]) + delta_ms
 
+	var interval := interval_ms(state)
 	var results: Array = []
 	var attempts := 0
-	while float(accumulator[0]) >= INTERVAL_MS and attempts < MAX_CATCHUP_ATTEMPTS:
-		accumulator[0] = float(accumulator[0]) - INTERVAL_MS
+	while float(accumulator[0]) >= interval and attempts < MAX_CATCHUP_ATTEMPTS:
+		accumulator[0] = float(accumulator[0]) - interval
 		attempts += 1
 		var result := simulate_catch(state, rare_bonus)
 		if not result.is_empty():

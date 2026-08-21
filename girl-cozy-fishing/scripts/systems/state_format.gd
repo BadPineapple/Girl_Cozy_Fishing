@@ -48,6 +48,7 @@ static func default_state() -> Dictionary:
 		"currencies": {
 			"conchas": 20,  # moeda principal, ganha vendendo peixe
 			"escamas": 0,   # moeda "rara", vem de peixes/achados especiais
+			"sucata": 0,    # sai de desmontar tralha; paga as melhorias da Oficina
 		},
 
 		"equipment": {
@@ -63,6 +64,11 @@ static func default_state() -> Dictionary:
 		"locationId": LocationsData.DEFAULT_LOCATION,
 		"unlockedLocations": [LocationsData.DEFAULT_LOCATION],
 		"unlockedVenues": [],  # lojas/ateliês abertos (ver venues em locations_data.gd)
+		"upgrades": [],        # melhorias compradas na Oficina
+
+		# Viagem em curso. Fica no save de propósito: o barco continua navegando
+		# com o jogo fechado, igual ao assistente de pesca.
+		"travel": {},          # {} ou {toId, fromId, startedAt, arrivesAt}
 
 		"inventory": [],  # [{fishId, qty}]
 
@@ -88,6 +94,8 @@ static func default_state() -> Dictionary:
 			"totalEscaped": 0,
 			"totalSoldConchas": 0,
 			"rareCatches": 0,
+			"totalScrapped": 0,
+			"totalTrips": 0,
 		},
 	}
 
@@ -173,6 +181,7 @@ static func sanitize_state(raw: Variant) -> Dictionary:
 	s["currencies"] = {
 		"conchas": _as_int(c.get("conchas"), int(def["currencies"]["conchas"]), 0),
 		"escamas": _as_int(c.get("escamas"), 0, 0),
+		"sucata": _as_int(c.get("sucata"), 0, 0),
 	}
 
 	var eq: Dictionary = s.get("equipment", {}) if typeof(s.get("equipment")) == TYPE_DICTIONARY else {}
@@ -204,6 +213,32 @@ static func sanitize_state(raw: Variant) -> Dictionary:
 			if typeof(id) == TYPE_STRING and known_venues.has(id) and not venues.has(id):
 				venues.append(id)
 	s["unlockedVenues"] = venues
+
+	var upgrades: Array = []
+	if typeof(s.get("upgrades")) == TYPE_ARRAY:
+		for id in s["upgrades"]:
+			if typeof(id) == TYPE_STRING and UpgradesData.has_upgrade(id) and not upgrades.has(id):
+				upgrades.append(id)
+	s["upgrades"] = upgrades
+
+	# Viagem: só sobrevive se apontar pra um lugar que existe e está liberado.
+	# Um destino inválido deixaria o barco navegando pra lugar nenhum pra sempre.
+	var trip: Variant = s.get("travel")
+	var valid_trip := typeof(trip) == TYPE_DICTIONARY \
+			and typeof((trip as Dictionary).get("toId")) == TYPE_STRING \
+			and unlocked_locs.has((trip as Dictionary).get("toId")) \
+			and _as_timestamp((trip as Dictionary).get("arrivesAt"), 0.0) > 0.0
+	if valid_trip:
+		var t: Dictionary = trip
+		var from_id: Variant = t.get("fromId")
+		s["travel"] = {
+			"toId": t["toId"],
+			"fromId": from_id if typeof(from_id) == TYPE_STRING and LocationsData.has_location(from_id) else s["locationId"],
+			"startedAt": _as_timestamp(t.get("startedAt"), now),
+			"arrivesAt": _as_timestamp(t.get("arrivesAt"), now),
+		}
+	else:
+		s["travel"] = {}
 
 	# Inventário: junta duplicatas, descarta id desconhecido e quantidade inválida.
 	var inv_order: Array = []
@@ -281,6 +316,8 @@ static func sanitize_state(raw: Variant) -> Dictionary:
 		"totalEscaped": _as_int(st.get("totalEscaped"), 0, 0),
 		"totalSoldConchas": _as_int(st.get("totalSoldConchas"), 0, 0),
 		"rareCatches": _as_int(st.get("rareCatches"), 0, 0),
+		"totalScrapped": _as_int(st.get("totalScrapped"), 0, 0),
+		"totalTrips": _as_int(st.get("totalTrips"), 0, 0),
 	}
 
 	return s

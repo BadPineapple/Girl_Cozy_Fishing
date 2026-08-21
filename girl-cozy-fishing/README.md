@@ -52,6 +52,44 @@ projeto. Os efeitos são ondas curtas geradas na inicialização e a "música" �
 uma ambiência de mar (ruído filtrado com uma maré lenta modulando por cima).
 Cada slider mexe no seu barramento (`Efeitos` e `Musica`).
 
+## O mundo
+
+O **Ancoradouro** é a casa: é lá que fica a Oficina e é de lá que se sai pra
+tudo. Cada continente tem um ponto, com peixário próprio e de verdade:
+
+| Continente | Lugar | O que mora lá |
+|---|---|---|
+| Casa | Ancoradouro, Enseada dos Corais, Mar Aberto | lambari, robalo, corais, atum, o lendário da fossa |
+| América do Sul | Rio Amazonas | tucunaré, piranha, tambaqui, pirarucu |
+| América do Norte | Grandes Lagos | achigã, truta-arco-íris, lúcio, salmão-real |
+| Europa | Fiordes da Noruega | arenque, bacalhau, salmão, halibute-gigante |
+| África | Rio Nilo | tilápia, bagre-elétrico, perca-do-nilo, peixe-tigre |
+| Ásia | Rio Mekong | peixe-arqueiro, carpa, bagre-gigante, koi ancestral |
+| Oceania | Grande Barreira | peixe-palhaço, papagaio, barramundi, garoupa-batata |
+| Antártida | Mar de Weddell | krill, bacalhau-antártico, peixe-de-gelo, lula-colossal |
+
+**Viajar leva tempo.** Quanto mais longe, mais o barco demora — o tempo aparece
+no próprio botão (`Zarpar (1min 24s)`), e em alto-mar não dá pra pescar. A
+viagem é guardada com o horário de chegada, não com um contador: ela continua
+correndo com o jogo fechado, então não dá pra ganhar tempo saindo do jogo.
+
+## Tralha e a Oficina
+
+Em qualquer água pode vir **tralha** no anzol: bota velha, lata amassada, meia
+solitária, pneu, guarda-chuva torto, celular encharcado (com 41 notificações),
+pato de borracha, dentadura, e — raramente — um carrinho de supermercado.
+
+Vendida ela não vale quase nada. O valor dela é na **Oficina do Cais**, em casa:
+desmonta tudo em **sucata**, e sucata paga melhoria permanente.
+
+| Melhoria | O que faz |
+|---|---|
+| Molinete Reforçado | a barra da puxada cai mais devagar |
+| Balde Isotérmico | peixe vale mais na venda |
+| Casco Polido | viagens bem mais curtas |
+| Amuleto de Escamas | mais chance de coisa rara morder |
+| Rádio de Bordo | o assistente tenta com mais frequência |
+
 ## Capturando a tela
 
 Pra conferir layout e cor sem ficar abrindo o jogo na mão:
@@ -92,6 +130,7 @@ scripts/
     cosmetics_data.gd     chapéus/roupas/acessórios equipáveis
     equipment_data.gd     varas, iscas, o "assistente de pesca"
     events_data.gd        eventos aleatórios temporários
+    upgrades_data.gd      as melhorias da Oficina
   systems/              lógica pura (funções estáticas que recebem/alteram o estado)
     state_format.gd      formato do save: defaults e a validação da leitura
     game_state.gd        autoload: a partida em andamento
@@ -103,7 +142,8 @@ scripts/
                            (+ cancelar e recolher a linha)
     shop_system.gd         vender peixe, comprar vara/isca/assistente
     cosmetics_system.gd    comprar/equipar cosméticos
-    map_system.gd          viajar entre locais e abrir estabelecimentos
+    map_system.gd          viagem com tempo e abertura de estabelecimentos
+    workshop.gd            desmonta tralha em sucata e aplica os bônus das melhorias
     events_engine.gd       sorteia e expira eventos
     auto_fish.gd           pescaria automática (conta pelo relógio de parede)
     offline_earnings.gd    o que o assistente rendeu com o jogo fechado
@@ -125,9 +165,13 @@ tests/
 Igual à versão web: adicionar conteúdo é **editar um arquivo em `scripts/data/`**.
 
 - Peixe novo → uma entrada em `FishData.FISH` com o `location` de onde ele vive.
-- Lugar novo → uma entrada em `LocationsData.LOCATIONS`.
-- Loja/ateliê novo → um item no array `venues` do local.
+- Tralha nova → mesma coisa, com `kind: "lixo"`, `scrap` e `location: "*"`
+  (asterisco = aparece em qualquer água).
+- Lugar novo → uma entrada em `LocationsData.LOCATIONS`, com `continent` e
+  `distance` (a régua que define o tempo de viagem).
+- Loja/ateliê/oficina novo → um item no array `venues` do local.
 - Cosmético novo → uma entrada em `CosmeticsData.COSMETICS`.
+- Melhoria nova → uma entrada em `UpgradesData.UPGRADES`.
 
 Nada disso exige mexer em interface: as telas são geradas a partir dos dados.
 

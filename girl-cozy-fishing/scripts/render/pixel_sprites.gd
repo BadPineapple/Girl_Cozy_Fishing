@@ -128,6 +128,16 @@ static func draw_shell_coin(ci: CanvasItem, center: Vector2, radius: float) -> v
 		)
 
 
+# Sucata: o que a tralha vira na Oficina. Uma porca sextavada.
+static func draw_scrap_coin(ci: CanvasItem, center: Vector2, radius: float) -> void:
+	var points := PackedVector2Array()
+	for i in 6:
+		var a := TAU * float(i) / 6.0 + PI / 6.0
+		points.append(center + Vector2(cos(a), sin(a)) * radius)
+	ci.draw_colored_polygon(points, Color("#b6a893"))
+	ci.draw_circle(center, radius * 0.42, Color("#4a4038"))
+
+
 # Escamas: a moeda rara. Um losango que brilha.
 static func draw_scale_coin(ci: CanvasItem, center: Vector2, radius: float) -> void:
 	var points := PackedVector2Array([

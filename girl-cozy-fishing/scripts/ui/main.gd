@@ -46,6 +46,8 @@ var _rank_label: Label
 var _xp_bar: ProgressBar
 var _conchas_label: Label
 var _escamas_label: Label
+var _sucata_label: Label
+var _sucata_group: Control
 var _pocket_tab: Button
 var _action_button: Button
 var _action_fill: ProgressBar
@@ -66,6 +68,9 @@ func _ready() -> void:
 	_session.phase_changed.connect(_on_phase_changed)
 	_session.fish_caught.connect(_on_fish_caught)
 	_session.fish_escaped.connect(_on_fish_escaped)
+
+	# A viagem corre pelo relógio: se venceu com o jogo fechado, desembarca agora.
+	MapSystem.settle_travel(state)
 
 	# O que o assistente rendeu enquanto o jogo estava fechado.
 	var offline := OfflineEarnings.compute(state, Effects.live_rare_bonus(state))
@@ -267,6 +272,12 @@ func _build_dock() -> Control:
 	row.add_child(_coin_group("conchas", _conchas_label, "Conchas"))
 	_escamas_label = UiKit.label("0", 16, UiKit.SCALE_BLUE)
 	row.add_child(_coin_group("escamas", _escamas_label, "Escamas"))
+	# A sucata só aparece depois que existe: no começo do jogo ela só ocuparia
+	# espaço numa barra que já é apertada.
+	_sucata_label = UiKit.label("0", 16, UiKit.CREAM_DIM)
+	_sucata_group = _coin_group("sucata", _sucata_label, "Sucata (Oficina)")
+	_sucata_group.visible = false
+	row.add_child(_sucata_group)
 
 	# --- ação principal (o medidor de puxada vive dentro dela) ---
 	row.add_child(_build_action_button())
@@ -363,7 +374,7 @@ func _on_pocket_tab() -> void:
 
 # ---------------------------------------------------------------- painéis
 func _build_panels() -> void:
-	for id in ["map", "pocket", "shop", "cosmetics", "settings", "offline"]:
+	for id in ["map", "pocket", "shop", "cosmetics", "workshop", "settings", "offline"]:
 		_panels[id] = _make_panel(id)
 
 
@@ -433,6 +444,7 @@ func _open_panel(id: String) -> void:
 		"pocket": _render_pocket_panel()
 		"shop": _render_shop_panel()
 		"cosmetics": _render_cosmetics_panel()
+		"workshop": _render_workshop_panel()
 		"settings": _render_settings_panel()
 	_show_panel(_panels[id]["root"])
 
@@ -476,7 +488,7 @@ func _close_panel(id: String) -> void:
 	_autosave()
 
 	# Saiu da loja/ateliê? Volta pro mapa, que foi de onde você entrou.
-	if id == "shop" or id == "cosmetics":
+	if id == "shop" or id == "cosmetics" or id == "workshop":
 		_hide_panel(_panels[id]["root"], _open_panel.bind("map"))
 		return
 
@@ -538,9 +550,12 @@ func _render_pocket_panel() -> void:
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		info.add_theme_constant_override("separation", 0)
 		info.add_child(UiKit.label(fish["name"], 16, UiKit.CREAM))
-		info.add_child(UiKit.label(
-			"%s — %d conchas cada" % [FishData.RARITY_LABEL[fish["rarity"]], ShopSystem.fish_sell_value(state, fish)],
-			13, UiKit.CREAM_DIM))
+		var detail := "%s — %d conchas cada" % [
+			FishData.RARITY_LABEL[fish["rarity"]], ShopSystem.fish_sell_value(state, fish)]
+		if FishData.is_trash(fish):
+			# Tralha vale quase nada vendida: o valor dela é a sucata da Oficina.
+			detail = "Tralha — %d de sucata na Oficina" % FishData.scrap_of(fish)
+		info.add_child(UiKit.label(detail, 13, UiKit.CREAM_DIM))
 		row.add_child(info)
 
 		var qty := UiKit.label("x%d" % int(entry["qty"]), 10, UiKit.CREAM, true)
@@ -587,29 +602,44 @@ func _render_map_panel() -> void:
 
 	body.add_child(_section_title("Viajar"))
 
+	var traveling := MapSystem.is_traveling(state)
+	if traveling:
+		var destination := MapSystem.travel_destination(state)
+		body.add_child(UiKit.row_card({
+			"title": "Navegando para %s" % destination.get("name", "…"),
+			"sub": "Chega em %s. Não dá pra pescar em alto-mar." % MapSystem.format_duration(
+				MapSystem.travel_remaining_ms(state)),
+			"highlight": true,
+		}))
+
 	for place in LocationsData.sorted_locations():
 		var place_id: String = place["id"]
 		var unlocked := MapSystem.is_location_unlocked(state, place_id)
-		var is_here: bool = state["locationId"] == place_id
+		var is_here: bool = state["locationId"] == place_id and not traveling
+		var affordable := int(state["player"]["rank"]) >= int(place["unlock_rank"]) \
+				and Economy.can_afford(state, place["unlock_cost"])
+
 		var button_text := "Desbloquear"
 		if is_here:
 			button_text = "Aqui"
 		elif unlocked:
-			button_text = "Viajar"
+			# O tempo aparece no próprio botão: é a informação que decide se
+			# vale a pena ir agora ou terminar de pescar aqui.
+			button_text = "Zarpar (%s)" % MapSystem.format_duration(
+				MapSystem.travel_time_ms(state, state["locationId"], place_id))
+
 		var sub_text := ""
 		if unlocked:
-			sub_text = place["description"]
+			sub_text = "%s — %s" % [place["continent"], place["description"]]
 		else:
-			sub_text = "Requer rank %d — %s" % [int(place["unlock_rank"]), UiKit.cost_label(place["unlock_cost"])]
-		var blocked: bool = is_here or (not unlocked and (
-			int(state["player"]["rank"]) < int(place["unlock_rank"])
-			or not Economy.can_afford(state, place["unlock_cost"])))
+			sub_text = "%s — requer rank %d e %s" % [
+				place["continent"], int(place["unlock_rank"]), UiKit.cost_label(place["unlock_cost"])]
 
 		body.add_child(UiKit.row_card({
 			"title": place["name"],
 			"sub": sub_text,
 			"button": button_text,
-			"disabled": blocked,
+			"disabled": is_here or traveling or (not unlocked and not affordable),
 			"equipped": is_here,
 			"on_click": _on_travel_pressed.bind(place_id),
 		}))
@@ -621,7 +651,10 @@ func _on_venue_pressed(venue_id: String) -> void:
 		if venue.is_empty():
 			return
 		_current_venue = venue
-		_open_panel("cosmetics" if venue["kind"] == "cosmetics" else "shop")
+		match venue["kind"]:
+			"cosmetics": _open_panel("cosmetics")
+			"workshop": _open_panel("workshop")
+			_: _open_panel("shop")
 		return
 
 	var result := MapSystem.unlock_venue(state, venue_id)
@@ -633,10 +666,21 @@ func _on_venue_pressed(venue_id: String) -> void:
 
 
 func _on_travel_pressed(location_id: String) -> void:
-	if MapSystem.is_location_unlocked(state, location_id):
-		MapSystem.travel_to(state, location_id)
-	elif MapSystem.unlock_location(state, location_id).get("ok", false):
-		MapSystem.travel_to(state, location_id)
+	# Desbloquear é compra; zarpar é uma viagem que leva tempo. Quem acabou de
+	# desbloquear já sai navegando pra lá.
+	if not MapSystem.is_location_unlocked(state, location_id):
+		if not MapSystem.unlock_location(state, location_id).get("ok", false):
+			_render_map_panel()
+			return
+		_toast("%s desbloqueado!" % LocationsData.get_location(location_id)["name"])
+
+	var trip := MapSystem.begin_travel(state, location_id)
+	if trip.get("ok", false):
+		Audio.play("cast")
+		_session.cancel()  # ninguém viaja com a linha na água
+		_toast("Zarpando para %s — %s" % [
+			trip["location"]["name"], MapSystem.format_duration(float(trip["duration_ms"]))])
+
 	_render_map_panel()
 	_refresh_status()
 	_autosave()
@@ -791,6 +835,66 @@ func _on_cosmetic_pressed(cosmetic_id: String) -> void:
 	_autosave()
 
 
+# ---- oficina (só na casa) ----
+func _render_workshop_panel() -> void:
+	var panel: Dictionary = _panels["workshop"]
+	panel["title"].text = _current_venue.get("name", "Oficina")
+	var body: VBoxContainer = panel["body"]
+	_clear(body)
+
+	# Desmontar: é o que dá função pra tralha pescada.
+	body.add_child(_section_title("Tralha"))
+	var pending := Workshop.scrap_in_pocket(state)
+	if pending > 0:
+		body.add_child(UiKit.row_card({
+			"title": "Desmontar a tralha do bolso",
+			"sub": "Rende %d de sucata. O peixe de verdade fica com você." % pending,
+			"button": "Desmontar",
+			"highlight": true,
+			"on_click": _on_dismantle,
+		}))
+	else:
+		body.add_child(_muted("Sem tralha no bolso. Bota velha, lata, pneu — tudo serve."))
+
+	body.add_child(_section_title("Melhorias"))
+	for upgrade_id in UpgradesData.all_ids():
+		var upgrade := UpgradesData.get_upgrade(upgrade_id)
+		var owned := Workshop.owns(state, upgrade_id)
+		var rank_ok := int(state["player"]["rank"]) >= int(upgrade["rank_req"])
+		var sub_text: String = upgrade["description"]
+		if not owned:
+			sub_text += "  (rank %d — %s)" % [int(upgrade["rank_req"]), UiKit.cost_label(upgrade["cost"])]
+
+		body.add_child(UiKit.row_card({
+			"title": upgrade["name"],
+			"sub": sub_text,
+			"button": "Instalada" if owned else "Instalar",
+			"disabled": owned or not rank_ok or not Economy.can_afford(state, upgrade["cost"]),
+			"equipped": owned,
+			"on_click": _on_buy_upgrade.bind(upgrade_id),
+		}))
+
+
+func _on_dismantle() -> void:
+	var gained := Workshop.dismantle_all(state)
+	if gained > 0:
+		Audio.play("coin")
+		_toast("+%d de sucata" % gained)
+	_render_workshop_panel()
+	_refresh_status()
+	_autosave()
+
+
+func _on_buy_upgrade(upgrade_id: String) -> void:
+	var result := Workshop.buy_upgrade(state, upgrade_id)
+	if result.get("ok", false):
+		Audio.play("rank")
+		_toast("Instalado: %s" % result["upgrade"]["name"])
+	_render_workshop_panel()
+	_refresh_status()
+	_autosave()
+
+
 # ---- configurações ----
 func _settings() -> Dictionary:
 	return state["settings"]
@@ -924,6 +1028,22 @@ func _process(delta: float) -> void:
 	var wall_dt := clampf(now - _last_wall_ms, 0.0, MAX_WALL_DT_MS)
 	_last_wall_ms = now
 
+	# Chegada: a viagem corre pelo relógio, então pode ter vencido enquanto o
+	# jogo estava fechado — é aqui e no boot que o desembarque acontece.
+	var arrived := MapSystem.settle_travel(state, now)
+	if not arrived.is_empty():
+		Audio.play("bite")
+		_toast("Chegou: %s" % arrived["name"])
+		_refresh_status()
+		_on_phase_changed(_session.snapshot())
+		_autosave()
+
+	var traveling := MapSystem.is_traveling(state, now)
+	if traveling:
+		# Em alto-mar não se pesca: nem o minigame, nem o assistente.
+		_show_travel_progress(now)
+		return
+
 	_session.tick(frame_dt)
 
 	var results := AutoFish.tick(state, wall_dt, Effects.live_rare_bonus(state), _auto_accumulator)
@@ -943,7 +1063,21 @@ func _process(delta: float) -> void:
 		_scene_view.retrieve_progress = _session.retrieve_progress()
 
 
+# Durante a viagem o botão de ação vira o painel do trajeto: o preenchimento
+# mostra o quanto já se andou e o texto, quanto falta.
+func _show_travel_progress(now_ms: float) -> void:
+	var destination := MapSystem.travel_destination(state)
+	_action_button.disabled = true
+	_action_label.modulate.a = 0.75
+	_action_label.text = "Navegando… %s" % MapSystem.format_duration(
+		MapSystem.travel_remaining_ms(state, now_ms))
+	_action_fill.value = MapSystem.travel_progress(state, now_ms) * 100.0
+	_location_label.text = "→ %s" % destination.get("name", "")
+
+
 func _on_main_action() -> void:
+	if MapSystem.is_traveling(state):
+		return
 	if _session.phase == "idle":
 		Audio.play("cast")
 		_session.start_cast()
@@ -1016,6 +1150,9 @@ func _refresh_status() -> void:
 	_xp_bar.value = minf(100.0, float(state["player"]["xp"]) / maxf(1.0, float(state["player"]["xpToNext"])) * 100.0)
 	_conchas_label.text = UiKit.format_number(int(state["currencies"]["conchas"]))
 	_escamas_label.text = UiKit.format_number(int(state["currencies"]["escamas"]))
+	var sucata := int(state["currencies"]["sucata"])
+	_sucata_label.text = UiKit.format_number(sucata)
+	_sucata_group.visible = sucata > 0 or not state["upgrades"].is_empty()
 	_location_label.text = MapSystem.current_location(state)["name"]
 
 	var pocket := StateFormat.total_fish(state)
@@ -1069,7 +1206,7 @@ func _topmost_open_panel() -> String:
 	# O resumo offline fica por cima de todos: é o último filho da camada.
 	if _panels["offline"]["root"].visible:
 		return "offline"
-	for id in ["shop", "cosmetics", "settings", "pocket", "map"]:
+	for id in ["shop", "cosmetics", "workshop", "settings", "pocket", "map"]:
 		if _panels[id]["root"].visible:
 			return id
 	return ""

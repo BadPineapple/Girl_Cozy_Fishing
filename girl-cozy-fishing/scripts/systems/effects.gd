@@ -44,8 +44,8 @@ static func bite_wait_multiplier(state: Dictionary) -> float:
 	return m if m > 0.0 else 1.0
 
 
-# Bônus de raridade que vale agora: isca equipada + evento ativo.
+# Bônus de raridade que vale agora: isca equipada + evento ativo + melhorias.
 static func live_rare_bonus(state: Dictionary) -> float:
 	var bait := EquipmentData.bait_by_tier(int(state["equipment"]["baitTier"]))
 	var bait_bonus := float(bait.get("rare_bonus_pct", 0)) if not bait.is_empty() else 0.0
-	return rare_bonus(state, bait_bonus)
+	return rare_bonus(state, bait_bonus) + Workshop.rare_bonus_pct(state)

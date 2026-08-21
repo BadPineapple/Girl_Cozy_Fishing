@@ -24,20 +24,14 @@ Audio="*res://scripts/systems/audio.gd"
 
 [display]
 
-; Janela widget: pequena, sem moldura, sempre no topo e com fundo transparente
-; (o "céu" da cena é justamente o buraco por onde a área de trabalho aparece).
 window/size/viewport_width=460
 window/size/viewport_height=230
 window/size/resizable=false
 window/size/borderless=true
 window/size/always_on_top=true
 window/size/transparent=true
-window/per_pixel_transparency/allowed=true
-; A escala do quadro funciona redimensionando a janela: com canvas_items +
-; aspecto travado, o Godot escala a interface toda junto e nada precisa ser
-; recalculado à mão.
 window/stretch/mode="canvas_items"
-window/stretch/aspect="keep"
+window/per_pixel_transparency/allowed=true
 
 [physics]
 
@@ -45,7 +39,6 @@ window/stretch/aspect="keep"
 
 [rendering]
 
-rendering_device/driver.windows="d3d12"
-; Sem isso o fundo transparente vira preto ao renderizar.
-viewport/transparent_background=true
 textures/canvas_textures/default_texture_filter=0
+rendering_device/driver.windows="d3d12"
+viewport/transparent_background=true

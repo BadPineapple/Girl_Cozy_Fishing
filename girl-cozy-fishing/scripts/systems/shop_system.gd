@@ -8,7 +8,8 @@ extends RefCounted
 # na venda. No widget original ele era calculado na pescaria e descartado, então
 # o evento não fazia absolutamente nada.
 static func fish_sell_value(state: Dictionary, fish: Dictionary) -> int:
-	return maxi(1, roundi(float(fish["value"]) * Effects.value_multiplier(state)))
+	var mult := Effects.value_multiplier(state) * Workshop.value_mult(state)
+	return maxi(1, roundi(float(fish["value"]) * mult))
 
 
 static func sell_fish(state: Dictionary, fish_id: String, qty: int) -> int:

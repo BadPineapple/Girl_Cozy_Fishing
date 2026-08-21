@@ -16,7 +16,10 @@ func _ready() -> void:
 func _draw() -> void:
 	var center := size * 0.5
 	var radius := minf(size.x, size.y) * 0.5
-	if kind == "escamas":
-		PixelSprites.draw_scale_coin(self, center, radius)
-	else:
-		PixelSprites.draw_shell_coin(self, center, radius)
+	match kind:
+		"escamas":
+			PixelSprites.draw_scale_coin(self, center, radius)
+		"sucata":
+			PixelSprites.draw_scrap_coin(self, center, radius)
+		_:
+			PixelSprites.draw_shell_coin(self, center, radius)
